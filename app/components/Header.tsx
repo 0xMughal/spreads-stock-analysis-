@@ -4,8 +4,8 @@ import { useState } from 'react'
 import { useTheme } from '../context/ThemeContext'
 
 interface HeaderProps {
-  activeTab: 'dashboard' | 'watchlist' | 'compare'
-  onTabChange: (tab: 'dashboard' | 'watchlist' | 'compare') => void
+  activeTab: 'dashboard' | 'watchlist'
+  onTabChange: (tab: 'dashboard' | 'watchlist') => void
   watchlistCount: number
   compareCount: number
 }
@@ -58,26 +58,6 @@ export default function Header({ activeTab, onTabChange, watchlistCount, compare
                 </span>
               )}
             </button>
-            <button
-              onClick={() => onTabChange('compare')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2 ${
-                activeTab === 'compare'
-                  ? 'bg-white text-gray-900 shadow-md'
-                  : 'text-white hover:bg-white/10'
-              }`}
-            >
-              Compare
-              {compareCount > 0 && (
-                <span className={`px-2 py-0.5 text-xs rounded-full transition-colors ${
-                  activeTab === 'compare'
-                    ? 'bg-gray-900 text-white'
-                    : 'bg-white/20 text-white'
-                }`}>
-                  {compareCount}
-                </span>
-              )}
-            </button>
-
             {/* Theme Toggle */}
             <button
               onClick={toggleTheme}
@@ -164,25 +144,6 @@ export default function Header({ activeTab, onTabChange, watchlistCount, compare
                     : 'bg-white/20 text-white'
                 }`}>
                   {watchlistCount}
-                </span>
-              )}
-            </button>
-            <button
-              onClick={() => { onTabChange('compare'); setMobileMenuOpen(false) }}
-              className={`w-full text-left px-4 py-2 rounded-lg text-sm font-medium flex items-center justify-between transition-all duration-200 ${
-                activeTab === 'compare'
-                  ? 'bg-white text-gray-900'
-                  : 'text-white hover:bg-white/10'
-              }`}
-            >
-              Compare
-              {compareCount > 0 && (
-                <span className={`px-2 py-0.5 text-xs rounded-full ${
-                  activeTab === 'compare'
-                    ? 'bg-gray-900 text-white'
-                    : 'bg-white/20 text-white'
-                }`}>
-                  {compareCount}
                 </span>
               )}
             </button>
