@@ -1,81 +1,107 @@
 /**
- * Yahoo Finance bulk quote fetcher
+ * Yahoo Finance data fetcher
  *
- * Uses Yahoo Finance v7 quote endpoint which supports up to ~200 symbols per request.
- * No API key required. Free and reliable for daily refreshes.
+ * Uses the v8 chart endpoint which still works without auth.
+ * Fetches one symbol per request but runs many in parallel.
  */
 
 export interface YahooQuote {
   symbol: string
-  shortName?: string
-  longName?: string
-  regularMarketPrice?: number
-  regularMarketChange?: number
-  regularMarketChangePercent?: number
-  regularMarketVolume?: number
-  averageDailyVolume3Month?: number
-  regularMarketDayHigh?: number
-  regularMarketDayLow?: number
+  price: number
+  change: number
+  changePercent: number
+  dayHigh: number
+  dayLow: number
+  volume: number
+  marketCap?: number
   fiftyTwoWeekHigh?: number
   fiftyTwoWeekLow?: number
-  marketCap?: number
   trailingPE?: number
   epsTrailingTwelveMonths?: number
-  trailingAnnualDividendYield?: number
-  sector?: string
-  industry?: string
-}
-
-interface YahooResponse {
-  quoteResponse?: {
-    result?: YahooQuote[]
-    error?: unknown
-  }
+  dividendYield?: number
+  shortName?: string
+  longName?: string
 }
 
 /**
- * Fetch quotes for a batch of symbols from Yahoo Finance
- * Max ~200 symbols per request
+ * Fetch a single stock quote from Yahoo Finance v8 chart endpoint
  */
-async function fetchBatch(symbols: string[]): Promise<YahooQuote[]> {
-  const joined = symbols.join(',')
-  const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${joined}&fields=symbol,shortName,longName,regularMarketPrice,regularMarketChange,regularMarketChangePercent,regularMarketVolume,averageDailyVolume3Month,regularMarketDayHigh,regularMarketDayLow,fiftyTwoWeekHigh,fiftyTwoWeekLow,marketCap,trailingPE,epsTrailingTwelveMonths,trailingAnnualDividendYield`
+async function fetchOne(symbol: string): Promise<YahooQuote | null> {
+  try {
+    const url = `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=5d&includePrePost=false`
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)' },
+      signal: AbortSignal.timeout(8000),
+    })
 
-  const res = await fetch(url, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)',
-    },
-  })
+    if (!res.ok) return null
 
-  if (!res.ok) {
-    console.error(`[Yahoo] Batch fetch failed: ${res.status}`)
-    return []
+    const data = await res.json()
+    const result = data?.chart?.result?.[0]
+    if (!result) return null
+
+    const meta = result.meta
+    const indicators = result.indicators?.quote?.[0]
+
+    // Get the most recent trading day's data
+    const timestamps = result.timestamp || []
+    const lastIdx = timestamps.length - 1
+
+    const price = meta.regularMarketPrice ?? 0
+    const prevClose = meta.chartPreviousClose ?? meta.previousClose ?? price
+    const change = price - prevClose
+    const changePercent = prevClose ? (change / prevClose) * 100 : 0
+
+    return {
+      symbol: meta.symbol || symbol,
+      price,
+      change: parseFloat(change.toFixed(2)),
+      changePercent: parseFloat(changePercent.toFixed(2)),
+      dayHigh: meta.regularMarketDayHigh ?? (indicators?.high?.[lastIdx] || price),
+      dayLow: meta.regularMarketDayLow ?? (indicators?.low?.[lastIdx] || price),
+      volume: meta.regularMarketVolume ?? (indicators?.volume?.[lastIdx] || 0),
+      fiftyTwoWeekHigh: meta.fiftyTwoWeekHigh,
+      fiftyTwoWeekLow: meta.fiftyTwoWeekLow,
+      shortName: meta.shortName,
+      longName: meta.longName,
+    }
+  } catch {
+    return null
   }
-
-  const data: YahooResponse = await res.json()
-  return data.quoteResponse?.result || []
 }
 
 /**
- * Fetch quotes for all symbols, batching in groups of 150
+ * Fetch all symbols in parallel batches
+ * Runs BATCH_SIZE concurrent requests at a time
  */
 export async function fetchAllQuotes(symbols: string[]): Promise<YahooQuote[]> {
-  const BATCH_SIZE = 150
+  const BATCH_SIZE = 50 // 50 concurrent requests
   const allQuotes: YahooQuote[] = []
+  let failed = 0
 
   for (let i = 0; i < symbols.length; i += BATCH_SIZE) {
     const batch = symbols.slice(i, i + BATCH_SIZE)
-    console.log(`[Yahoo] Fetching batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(symbols.length / BATCH_SIZE)} (${batch.length} symbols)`)
+    const batchNum = Math.floor(i / BATCH_SIZE) + 1
+    const totalBatches = Math.ceil(symbols.length / BATCH_SIZE)
 
-    const quotes = await fetchBatch(batch)
-    allQuotes.push(...quotes)
+    console.log(`[Yahoo] Batch ${batchNum}/${totalBatches} (${batch.length} symbols)`)
 
-    // Small delay between batches to be polite
+    const results = await Promise.all(batch.map(fetchOne))
+
+    for (const q of results) {
+      if (q && q.price > 0) {
+        allQuotes.push(q)
+      } else {
+        failed++
+      }
+    }
+
+    // Small delay between batches to avoid throttling
     if (i + BATCH_SIZE < symbols.length) {
-      await new Promise(r => setTimeout(r, 500))
+      await new Promise(r => setTimeout(r, 300))
     }
   }
 
-  console.log(`[Yahoo] Fetched ${allQuotes.length}/${symbols.length} quotes`)
+  console.log(`[Yahoo] Done: ${allQuotes.length} success, ${failed} failed out of ${symbols.length}`)
   return allQuotes
 }
