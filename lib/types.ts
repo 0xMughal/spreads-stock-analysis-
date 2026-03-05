@@ -245,7 +245,7 @@ export interface EarningsCalendarResponse {
   earningsCalendar: EarningsEvent[]
 }
 
-export type TabType = 'dashboard' | 'watchlist' | 'compare' | 'pe-ratio' | 'earnings' | 'revenue-growth' | 'social-metrics' | 'points-rewards' | 'dividends' | 'compound-interest' | 'portfolio' | 'heatmap'
+export type TabType = 'dashboard' | 'watchlist' | 'pe-ratio' | 'earnings' | 'revenue-growth' | 'dividends' | 'compound-interest' | 'portfolio' | 'heatmap'
 
 // Compound Interest Calculator Types
 export interface CompoundInterestCalculation {

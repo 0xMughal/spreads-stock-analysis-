@@ -7,6 +7,8 @@ const publicRoutes = [
   "/login",
   "/api/auth",
   "/api/stocks",
+  "/api/nasdaq100",
+  "/api/international",
   "/api/cron",
   "/api/debug-auth", // Temporary - remove after debugging
   "/api/historical-pe",

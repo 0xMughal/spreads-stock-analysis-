@@ -6,6 +6,7 @@ import { Stock } from '@/lib/types'
 interface StockHeatmapProps {
   stocks: Stock[]
   onSelectStock: (stock: Stock) => void
+  datasetName?: string
 }
 
 interface HeatmapStock {
@@ -47,7 +48,7 @@ const SECTORS = [
   'Other'
 ]
 
-export default function StockHeatmap({ stocks: localStocks, onSelectStock }: StockHeatmapProps) {
+export default function StockHeatmap({ stocks: localStocks, onSelectStock, datasetName = 'S&P 500' }: StockHeatmapProps) {
   const [heatmapStocks, setHeatmapStocks] = useState<HeatmapStock[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedSector, setSelectedSector] = useState<string>('All Sectors')
@@ -230,7 +231,7 @@ export default function StockHeatmap({ stocks: localStocks, onSelectStock }: Sto
       {/* Header */}
       <div className="mb-6">
         <h2 className="text-2xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>
-          S&P 500 Stock Market Heatmap
+          {datasetName} Stock Market Heatmap
         </h2>
         <p style={{ color: 'var(--text-secondary)' }}>
           Visualize {filteredStocks.length} stocks by market cap and daily performance

@@ -36,8 +36,9 @@ const config: Config = {
         'off-white': '#f7f8f9',
       },
       fontFamily: {
-        'heading': ['var(--font-orbitron)', 'sans-serif'],
-        'body': ['var(--font-montserrat)', 'sans-serif'],
+        'sans': ['var(--font-inter)', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+        'heading': ['var(--font-inter)', 'sans-serif'],
+        'body': ['var(--font-inter)', 'sans-serif'],
       },
       animation: {
         'fade-in': 'fadeIn 0.3s ease-out',

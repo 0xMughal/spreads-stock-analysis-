@@ -1,12 +1,16 @@
 {
   "crons": [
     {
-      "path": "/api/cron/refresh-stocks",
-      "schedule": "0 9 * * *"
+      "path": "/api/cron/refresh-sp500",
+      "schedule": "0 14 * * *"
     },
     {
-      "path": "/api/cron/refresh-reddit",
-      "schedule": "0 6 * * *"
+      "path": "/api/cron/refresh-nasdaq",
+      "schedule": "0 15 * * *"
+    },
+    {
+      "path": "/api/cron/refresh-international",
+      "schedule": "0 16 * * *"
     }
   ]
 }
