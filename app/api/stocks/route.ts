@@ -246,7 +246,9 @@ export async function GET() {
     // Try to get cached data from Vercel KV (if available)
     if (isKVAvailable()) {
       try {
-        const cached = await kv.get<CachedData>(CACHE_KEY)
+        // Check the new unified cache first, then fall back to sp500-specific
+        const cached = (await kv.get<CachedData>('stocks:all'))
+          ?? (await kv.get<CachedData>(CACHE_KEY))
 
         if (cached && cached.stocks && cached.stocks.length > 0) {
           const cacheAge = Math.round((Date.now() - cached.timestamp) / 1000)

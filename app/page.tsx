@@ -94,14 +94,22 @@ export default function Home() {
     setStocks(allDatasets[activeDataset])
   }, [activeDataset, allDatasets])
 
+  const [refreshing, setRefreshing] = useState(false)
+
   const handleRefreshData = useCallback(async () => {
-    setLoading(true)
+    setRefreshing(true)
 
     try {
+      // Hit the refresh endpoint — fetches from Yahoo Finance and caches for 24h
+      const refreshRes = await fetch('/api/refresh')
+      const refreshData = await refreshRes.json()
+      console.log(`[Refresh] ${refreshData.stockCount} stocks fetched in ${refreshData.elapsed}`)
+
+      // Now reload from cache
       const [sp500Response, nasdaq100Response, internationalResponse] = await Promise.all([
-        fetch('/api/stocks?refresh=' + Date.now()),
-        fetch('/api/nasdaq100?refresh=' + Date.now()),
-        fetch('/api/international?refresh=' + Date.now())
+        fetch('/api/stocks'),
+        fetch('/api/nasdaq100'),
+        fetch('/api/international')
       ])
 
       const sp500Data = await sp500Response.json()
@@ -115,12 +123,12 @@ export default function Home() {
       })
 
       setStocks(sp500Data.data || [])
-      setDataSource(sp500Data.source === 'mock' ? 'mock' : 'api')
-      setCacheHoursRemaining(5)
+      setDataSource('api')
+      setCacheHoursRemaining(24)
     } catch (error) {
       console.error('Failed to refresh stocks:', error)
     } finally {
-      setLoading(false)
+      setRefreshing(false)
     }
   }, [])
 
@@ -202,14 +210,14 @@ export default function Home() {
                   </div>
                   <button
                     onClick={handleRefreshData}
-                    disabled={loading}
+                    disabled={refreshing}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
                     style={{ color: 'var(--text-secondary)', border: '1px solid var(--border-color)' }}
-                    title="Refresh data">
-                    <svg className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    title="Fetch fresh prices from Yahoo Finance">
+                    <svg className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                     </svg>
-                    Refresh
+                    {refreshing ? 'Refreshing...' : 'Refresh'}
                   </button>
                 </div>
               </div>

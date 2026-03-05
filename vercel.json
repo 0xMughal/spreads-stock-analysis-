@@ -1,4 +1,9 @@
 {
+  "functions": {
+    "app/api/refresh/route.ts": {
+      "maxDuration": 60
+    }
+  },
   "crons": [
     {
       "path": "/api/cron/refresh-sp500",
