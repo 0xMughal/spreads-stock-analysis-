@@ -17,6 +17,14 @@ const publicRoutes = [
   "/api/reddit-trending",
   "/api/trending",
   "/api/sp500-pe",
+  "/api/refresh",
+  "/api/v1",
+  "/api/v2",
+  "/api/ingest",
+  "/api/dividends",
+  "/api/earnings",
+  "/api/compound-calculations",
+  "/api/portfolio",
 ]
 
 // Admin-only routes
