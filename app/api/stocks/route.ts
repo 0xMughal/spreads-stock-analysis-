@@ -117,12 +117,17 @@ export async function GET() {
         dayLow: p?.dayLow ?? 0,
         yearHigh: p?.yearHigh ?? 0,
         yearLow: p?.yearLow ?? 0,
-        logo: `https://static2.finnhub.io/file/publicdatany/finnhubimage/stock_logo/${entry.ticker}.png`,
+        logo: `/data/logos/${entry.ticker.split('.')[0]}.png`,
       }
     })
 
-    // Sort by market cap descending
-    stocks.sort((a, b) => (b.marketCap || 0) - (a.marketCap || 0))
+    // Sort by market cap descending; use sharesOutstanding as tiebreaker when no price data
+    const sharesMap = new Map(index.map(e => [e.ticker, e.sharesOutstanding || 0]))
+    stocks.sort((a, b) => {
+      const capDiff = (b.marketCap || 0) - (a.marketCap || 0)
+      if (capDiff !== 0) return capDiff
+      return (sharesMap.get(b.symbol) || 0) - (sharesMap.get(a.symbol) || 0)
+    })
 
     console.log(`[API] Returned ${stocks.length} stocks in ${Date.now() - startTime}ms (cache: ${cache?.updatedAt || 'none'})`)
 

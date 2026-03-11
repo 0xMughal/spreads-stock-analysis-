@@ -722,6 +722,18 @@ export default function StockDetailPage() {
     }
   }, [stock, allStocks])
 
+  // Compute market cap: use stock.marketCap from Yahoo, fallback to price × shares outstanding from fundamentals
+  const computedMarketCap = useMemo(() => {
+    if (stock?.marketCap && stock.marketCap > 0) return stock.marketCap
+    if (!stock || !fundamentals) return 0
+    const sorted = [...fundamentals.quarters].sort((a, b) => b.date.localeCompare(a.date))
+    const latestShares = sorted.find(q => q.sharesOutstanding != null)?.sharesOutstanding
+    if (latestShares && stock.price) return stock.price * latestShares
+    return 0
+  }, [stock, fundamentals])
+
+  const isPositive = (stock?.changesPercentage ?? 0) >= 0
+
   if (loading) {
     return (
       <div className="min-h-screen bg-off-white dark:bg-dark-bg">
@@ -766,18 +778,6 @@ export default function StockDetailPage() {
       </div>
     )
   }
-
-  // Compute market cap: use stock.marketCap from Yahoo, fallback to price × shares outstanding from fundamentals
-  const computedMarketCap = useMemo(() => {
-    if (stock?.marketCap && stock.marketCap > 0) return stock.marketCap
-    if (!stock || !fundamentals) return 0
-    const sorted = [...fundamentals.quarters].sort((a, b) => b.date.localeCompare(a.date))
-    const latestShares = sorted.find(q => q.sharesOutstanding != null)?.sharesOutstanding
-    if (latestShares && stock.price) return stock.price * latestShares
-    return 0
-  }, [stock, fundamentals])
-
-  const isPositive = stock.changesPercentage >= 0
 
   return (
     <div className="min-h-screen bg-off-white dark:bg-dark-bg">

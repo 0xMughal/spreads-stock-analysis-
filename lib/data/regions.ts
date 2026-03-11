@@ -1,4 +1,4 @@
-export type RegionKey = 'all' | 'us' | 'europe' | 'asia' | 'americas'
+export type RegionKey = 'all' | 'us' | 'uk' | 'europe' | 'japan' | 'korea' | 'asia' | 'americas'
 
 export interface RegionDef {
   key: RegionKey
@@ -9,6 +9,9 @@ export interface RegionDef {
 export const REGIONS: RegionDef[] = [
   { key: 'all', label: 'Global', countries: [] },
   { key: 'us', label: 'US', countries: ['US'] },
+  { key: 'uk', label: 'UK', countries: ['United Kingdom'] },
+  { key: 'japan', label: 'Japan', countries: ['Japan'] },
+  { key: 'korea', label: 'Korea', countries: ['South Korea'] },
   {
     key: 'europe',
     label: 'Europe',

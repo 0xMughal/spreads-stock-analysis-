@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import StockLogo from './components/StockLogo'
 import { Stock } from '@/lib/types'
 import { REGIONS, RegionKey } from '@/lib/data/regions'
@@ -47,7 +48,7 @@ const CATEGORIES: CategoryDef[] = [
   { key: 'utilities', label: 'Utilities', filter: (s) => s.sector === 'Utilities' },
 ]
 
-const DISPLAY_LIMIT = 100
+const DISPLAY_LIMIT = 200
 
 export default function Home() {
   const router = useRouter()
@@ -120,12 +121,13 @@ export default function Home() {
         <div className="max-w-[1200px] mx-auto px-5 sm:px-8 py-3.5">
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2.5 shrink-0">
-              <div
-                className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold"
-                style={{ backgroundColor: 'var(--accent, var(--spreads-green))' }}
-              >
-                S
-              </div>
+              <Image
+                src="/spreads-logo.jpg"
+                alt="Spreads"
+                width={32}
+                height={32}
+                className="rounded-lg"
+              />
               <span
                 className="text-base font-semibold tracking-tight hidden sm:block"
                 style={{ color: 'var(--accent, var(--spreads-green))' }}
@@ -166,7 +168,7 @@ export default function Home() {
             </div>
 
             <span className="text-xs hidden sm:block" style={{ color: 'var(--text-muted)' }}>
-              {displayStocks.length} stocks
+              {stocks.length.toLocaleString()} stocks
             </span>
 
             <button
@@ -215,6 +217,7 @@ export default function Home() {
                 <div className="transition-transform duration-300 ease-out group-hover:scale-110 group-hover:-translate-y-1">
                   <StockLogo
                     symbol={stock.symbol}
+                    name={stock.name}
                     logo={stock.logo}
                     size="xl"
                     className="shadow-md group-hover:shadow-xl transition-shadow duration-300"
