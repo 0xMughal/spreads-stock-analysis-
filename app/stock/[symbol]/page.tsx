@@ -332,7 +332,6 @@ function ScrollableChartArea({ dataCount, height, children }: { dataCount: numbe
         className="overflow-x-auto scrollbar-hide"
         style={{ WebkitOverflowScrolling: 'touch' }}
         onScroll={updateScrollState}
-        onClick={(e) => e.stopPropagation()}
       >
         <div style={{ width: innerWidth, height }}>
           <ResponsiveContainer width="100%" height="100%">
@@ -379,7 +378,7 @@ interface ChartConfig {
   animationDelay?: number
 }
 
-function SpreadsChart({ config, height = 320, expanded = false }: { config: ChartConfig; height?: number; expanded?: boolean }) {
+function SpreadsChart({ config, height = 320, expanded = false, onExpand }: { config: ChartConfig; height?: number; expanded?: boolean; onExpand?: () => void }) {
   const { title, symbol, companyName, logo, data, type = 'bar', brandColor, valueFormatter = formatCompact, animationDelay = 0 } = config
   const mutedColor = lightenColor(brandColor, 0.45)
   const lastIdx = data.length - 1
@@ -398,7 +397,21 @@ function SpreadsChart({ config, height = 320, expanded = false }: { config: Char
               <span className="text-sm font-bold" style={{ color: brandColor }}>${symbol}</span>
             </div>
           </div>
-          <CopyChartButton targetRef={captureRef} />
+          <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+            <CopyChartButton targetRef={captureRef} />
+            {onExpand && (
+              <button
+                onClick={onExpand}
+                className="w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110"
+                style={{ backgroundColor: `${S.green}10`, color: S.textMuted }}
+                title="Expand chart"
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+                </svg>
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -481,20 +494,10 @@ function ExpandableChart({ config, height }: { config: ChartConfig; height?: num
   return (
     <>
       <div
-        className="rounded-2xl overflow-hidden cursor-pointer transition-shadow hover:shadow-lg group"
+        className="rounded-2xl overflow-hidden transition-shadow hover:shadow-lg"
         style={{ backgroundColor: S.bg, animation: `fadeUp 0.5s ease-out ${config.animationDelay || 0}ms both` }}
-        onClick={() => setExpanded(true)}
       >
-        <div className="absolute top-3 right-3 z-10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-          <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ backgroundColor: `${S.green}15` }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={S.green} strokeWidth={2}>
-              <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
-            </svg>
-          </div>
-        </div>
-        <div className="relative">
-          <SpreadsChart config={config} height={height} />
-        </div>
+        <SpreadsChart config={config} height={height} onExpand={() => setExpanded(true)} />
       </div>
       <ChartModal open={expanded} onClose={() => setExpanded(false)}>
         <SpreadsChart config={config} expanded />
@@ -515,7 +518,7 @@ interface MultiChartConfig {
   animationDelay?: number
 }
 
-function SpreadsMultiChartInner({ config, height = 320, expanded = false }: { config: MultiChartConfig; height?: number; expanded?: boolean }) {
+function SpreadsMultiChartInner({ config, height = 320, expanded = false, onExpand }: { config: MultiChartConfig; height?: number; expanded?: boolean; onExpand?: () => void }) {
   const { title, symbol, companyName, logo, data, series, animationDelay = 0 } = config
   const captureRef = useRef<HTMLDivElement>(null)
 
@@ -531,7 +534,21 @@ function SpreadsMultiChartInner({ config, height = 320, expanded = false }: { co
               <span className="text-sm font-bold" style={{ color: S.green }}>${symbol}</span>
             </div>
           </div>
-          <CopyChartButton targetRef={captureRef} />
+          <div className="flex items-center gap-1.5">
+            <CopyChartButton targetRef={captureRef} />
+            {onExpand && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onExpand() }}
+                className="w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110"
+                style={{ backgroundColor: `${S.green}10`, color: S.textMuted }}
+                title="Expand chart"
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+                </svg>
+              </button>
+            )}
+          </div>
         </div>
       </div>
       <ScrollableChartArea dataCount={data.length} height={expanded ? 450 : height}>
@@ -565,11 +582,10 @@ function ExpandableMultiChart({ config, height }: { config: MultiChartConfig; he
   return (
     <>
       <div
-        className="rounded-2xl overflow-hidden cursor-pointer transition-shadow hover:shadow-lg relative group"
+        className="rounded-2xl overflow-hidden transition-shadow hover:shadow-lg relative"
         style={{ backgroundColor: S.bg, animation: `fadeUp 0.5s ease-out ${config.animationDelay || 0}ms both` }}
-        onClick={() => setExpanded(true)}
       >
-        <SpreadsMultiChartInner config={config} height={height} />
+        <SpreadsMultiChartInner config={config} height={height} onExpand={() => setExpanded(true)} />
       </div>
       <ChartModal open={expanded} onClose={() => setExpanded(false)}>
         <SpreadsMultiChartInner config={config} expanded />
