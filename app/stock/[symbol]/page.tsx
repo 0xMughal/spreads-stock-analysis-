@@ -309,7 +309,7 @@ function ScrollableChartArea({ dataCount, height, children }: { dataCount: numbe
       {/* Left arrow */}
       {canScrollLeft && (
         <button
-          onClick={() => scroll('left')}
+          onClick={(e) => { e.stopPropagation(); scroll('left') }}
           className="absolute left-4 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full flex items-center justify-center shadow-lg transition-all duration-200 hover:scale-110 active:scale-95"
           style={{ backgroundColor: S.green, color: '#fff' }}
         >
@@ -332,6 +332,7 @@ function ScrollableChartArea({ dataCount, height, children }: { dataCount: numbe
         className="overflow-x-auto scrollbar-hide"
         style={{ WebkitOverflowScrolling: 'touch' }}
         onScroll={updateScrollState}
+        onClick={(e) => e.stopPropagation()}
       >
         <div style={{ width: innerWidth, height }}>
           <ResponsiveContainer width="100%" height="100%">
@@ -351,7 +352,7 @@ function ScrollableChartArea({ dataCount, height, children }: { dataCount: numbe
       {/* Right arrow */}
       {canScrollRight && (
         <button
-          onClick={() => scroll('right')}
+          onClick={(e) => { e.stopPropagation(); scroll('right') }}
           className="absolute right-4 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full flex items-center justify-center shadow-lg transition-all duration-200 hover:scale-110 active:scale-95"
           style={{ backgroundColor: S.green, color: '#fff' }}
         >
