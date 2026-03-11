@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef, useMemo } from 'react'
+import { useEffect, useState, useRef, useMemo, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -8,27 +8,23 @@ import { Stock } from '@/lib/types'
 import { formatCurrency, formatLargeCurrency, formatPercent } from '@/lib/utils'
 import { useTheme } from '@/app/context/ThemeContext'
 import StockLogo from '@/app/components/StockLogo'
+import { getBrandColor } from '@/lib/data/brand-colors'
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis,
   Tooltip, ResponsiveContainer, TooltipProps, Cell
 } from 'recharts'
 
 // ─── Spreads Brand Palette ───
-const SPREADS = {
+const S = {
   bg: '#F0EDE6',
-  bgDark: '#0D1F17',
   green: '#1B3A2D',
   greenLight: '#2D5E47',
   greenMuted: '#5A7A6E',
   greenDim: '#9BB5AA',
   accent: '#2ECC71',
   red: '#E74C3C',
-  redMuted: '#C0392B',
   cream: '#D4C9A8',
   grid: '#E0DDD6',
-  gridDark: '#1B3A2D',
-  barActive: '#1B3A2D',
-  barMuted: '#A8BFB5',
   text: '#1B3A2D',
   textMuted: '#5A7A6E',
   textDim: '#9BB5AA',
@@ -37,27 +33,9 @@ const SPREADS = {
 declare global {
   interface Window {
     TradingView: {
-      widget: new (config: TradingViewConfig) => void
+      widget: new (config: Record<string, unknown>) => void
     }
   }
-}
-
-interface TradingViewConfig {
-  autosize: boolean
-  symbol: string
-  interval: string
-  timezone: string
-  theme: string
-  style: string
-  locale: string
-  toolbar_bg: string
-  enable_publishing: boolean
-  allow_symbol_change: boolean
-  container_id: string
-  hide_top_toolbar: boolean
-  hide_legend: boolean
-  save_image: boolean
-  studies: string[]
 }
 
 interface QuarterData {
@@ -84,7 +62,7 @@ interface FundamentalsData {
   quarters: QuarterData[]
 }
 
-// ─── Utility Functions ───
+// ─── Utils ───
 
 function formatCompact(value: number): string {
   const abs = Math.abs(value)
@@ -93,21 +71,30 @@ function formatCompact(value: number): string {
   if (abs >= 1e9) return `${sign}$${(abs / 1e9).toFixed(1)}B`
   if (abs >= 1e6) return `${sign}$${(abs / 1e6).toFixed(0)}M`
   if (abs >= 1e3) return `${sign}$${(abs / 1e3).toFixed(0)}K`
-  return `${sign}$${abs.toFixed(0)}`
+  return `${sign}$${abs.toFixed(2)}`
 }
 
 function formatQuarterLabel(dateStr: string): string {
   const d = new Date(dateStr)
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-  const yr = d.getUTCFullYear() % 100
-  return `${months[d.getUTCMonth()]} '${yr.toString().padStart(2, '0')}`
+  return `${months[d.getUTCMonth()]} '${(d.getUTCFullYear() % 100).toString().padStart(2, '0')}`
+}
+
+/** Lighten a hex color by a factor (0-1) */
+function lightenColor(hex: string, factor: number): string {
+  const r = parseInt(hex.slice(1, 3), 16)
+  const g = parseInt(hex.slice(3, 5), 16)
+  const b = parseInt(hex.slice(5, 7), 16)
+  const lr = Math.round(r + (255 - r) * factor)
+  const lg = Math.round(g + (255 - g) * factor)
+  const lb = Math.round(b + (255 - b) * factor)
+  return `#${lr.toString(16).padStart(2, '0')}${lg.toString(16).padStart(2, '0')}${lb.toString(16).padStart(2, '0')}`
 }
 
 // ─── TradingView Widget ───
 
 function TradingViewWidget({ symbol, theme }: { symbol: string; theme: string }) {
   const containerRef = useRef<HTMLDivElement>(null)
-
   useEffect(() => {
     const script = document.createElement('script')
     script.src = 'https://s3.tradingview.com/tv.js'
@@ -116,7 +103,7 @@ function TradingViewWidget({ symbol, theme }: { symbol: string; theme: string })
       if (containerRef.current && window.TradingView) {
         new window.TradingView.widget({
           autosize: true,
-          symbol: symbol,
+          symbol,
           interval: 'D',
           timezone: 'America/New_York',
           theme: theme === 'dark' ? 'dark' : 'light',
@@ -134,30 +121,25 @@ function TradingViewWidget({ symbol, theme }: { symbol: string; theme: string })
       }
     }
     document.head.appendChild(script)
-
     return () => {
-      const existingScript = document.querySelector('script[src="https://s3.tradingview.com/tv.js"]')
-      if (existingScript) existingScript.remove()
+      document.querySelector('script[src="https://s3.tradingview.com/tv.js"]')?.remove()
     }
   }, [symbol, theme])
 
   return (
-    <div className="w-full h-full min-h-[400px] lg:min-h-[500px]">
+    <div className="w-full h-full min-h-[350px]">
       <div id="tradingview_widget" ref={containerRef} className="w-full h-full" />
     </div>
   )
 }
 
-// ─── Spreads-Styled Chart Tooltip ───
+// ─── Chart Tooltip ───
 
 function SpreadsTooltip({ active, payload, label, valueFormatter }: TooltipProps<number, string> & { valueFormatter: (v: number) => string }) {
   if (!active || !payload || payload.length === 0) return null
   return (
-    <div
-      className="rounded-lg px-4 py-2.5 shadow-xl"
-      style={{ backgroundColor: SPREADS.green, border: `1px solid ${SPREADS.greenLight}` }}
-    >
-      <p className="text-xs font-medium mb-0.5" style={{ color: SPREADS.greenDim }}>{label}</p>
+    <div className="rounded-lg px-4 py-2.5 shadow-xl" style={{ backgroundColor: S.green, border: `1px solid ${S.greenLight}` }}>
+      <p className="text-xs font-medium mb-0.5" style={{ color: S.greenDim }}>{label}</p>
       {payload.map((entry, i) => (
         <p key={i} className="text-sm font-bold" style={{ color: '#fff' }}>
           {entry.name && entry.name !== 'value' ? `${entry.name}: ` : ''}
@@ -168,123 +150,134 @@ function SpreadsTooltip({ active, payload, label, valueFormatter }: TooltipProps
   )
 }
 
-// ─── Spreads Chart Card ───
-// Matches the Spreads content bot aesthetic: cream bg, dark green text,
-// company logo + title header, animated bars, watermark
+// ─── Expandable Chart Modal ───
 
-interface SpreadsChartProps {
+function ChartModal({ open, onClose, children }: { open: boolean; onClose: () => void; children: React.ReactNode }) {
+  useEffect(() => {
+    if (open) document.body.style.overflow = 'hidden'
+    else document.body.style.overflow = ''
+    return () => { document.body.style.overflow = '' }
+  }, [open])
+
+  if (!open) return null
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+      onClick={onClose}
+      style={{ backgroundColor: 'rgba(0,0,0,0.6)', animation: 'fadeIn 0.2s ease-out' }}
+    >
+      <div
+        className="w-full max-w-5xl max-h-[90vh] overflow-auto rounded-2xl relative"
+        onClick={e => e.stopPropagation()}
+        style={{ backgroundColor: S.bg, animation: 'scaleIn 0.25s ease-out' }}
+      >
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 z-10 w-8 h-8 rounded-full flex items-center justify-center transition-opacity hover:opacity-70"
+          style={{ backgroundColor: `${S.green}15`, color: S.green }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+            <path d="M18 6 6 18M6 6l12 12" />
+          </svg>
+        </button>
+        {children}
+      </div>
+    </div>
+  )
+}
+
+// ─── Spreads Chart Card ───
+
+interface ChartConfig {
   title: string
-  subtitle?: string
   symbol: string
   companyName: string
   logo?: string
   data: Array<{ quarter: string; value: number }>
   type?: 'bar' | 'line'
-  color?: string
+  brandColor: string
   valueFormatter?: (v: number) => string
   animationDelay?: number
 }
 
-function SpreadsChart({
-  title, subtitle, symbol, companyName, logo,
-  data, type = 'bar', color,
-  valueFormatter = formatCompact,
-  animationDelay = 0,
-}: SpreadsChartProps) {
-  const barColor = color || SPREADS.barActive
-  const isLastIndex = data.length - 1
+function SpreadsChart({ config, height = 320, expanded = false }: { config: ChartConfig; height?: number; expanded?: boolean }) {
+  const { title, symbol, companyName, logo, data, type = 'bar', brandColor, valueFormatter = formatCompact, animationDelay = 0 } = config
+  const mutedColor = lightenColor(brandColor, 0.45)
+  const lastIdx = data.length - 1
 
   return (
-    <div
-      className="rounded-2xl overflow-hidden"
-      style={{
-        backgroundColor: SPREADS.bg,
-        animation: `fadeUp 0.5s ease-out ${animationDelay}ms both`,
-      }}
-    >
+    <div className={expanded ? 'p-6' : ''}>
       {/* Header */}
       <div className="px-6 pt-5 pb-2">
         <div className="flex items-center gap-3 mb-1">
           <StockLogo symbol={symbol} name={companyName} logo={logo} size="md" />
           <div>
-            <h3 className="text-xl font-bold" style={{ color: SPREADS.text }}>{title}</h3>
+            <h3 className={`font-bold ${expanded ? 'text-2xl' : 'text-lg'}`} style={{ color: S.text }}>{title}</h3>
             <div className="flex items-center gap-2">
-              <span className="text-sm" style={{ color: SPREADS.textMuted }}>{companyName}</span>
-              <span className="text-sm font-bold" style={{ color: SPREADS.accent }}>${symbol}</span>
+              <span className="text-sm" style={{ color: S.textMuted }}>{companyName}</span>
+              <span className="text-sm font-bold" style={{ color: brandColor }}>${symbol}</span>
             </div>
           </div>
         </div>
-        {subtitle && (
-          <p className="text-xs mt-1" style={{ color: SPREADS.textDim }}>{subtitle}</p>
-        )}
       </div>
 
       {/* Chart */}
       <div className="px-3 pb-2">
-        <ResponsiveContainer width="100%" height={280}>
+        <ResponsiveContainer width="100%" height={expanded ? 450 : height}>
           {type === 'bar' ? (
-            <BarChart data={data} margin={{ top: 15, right: 50, bottom: 25, left: 10 }}>
+            <BarChart data={data} margin={{ top: 15, right: 55, bottom: 30, left: 10 }}>
               <XAxis
                 dataKey="quarter"
-                tick={{ fontSize: 11, fill: SPREADS.textMuted, fontWeight: 500 }}
-                axisLine={{ stroke: SPREADS.grid }}
+                tick={{ fontSize: expanded ? 12 : 11, fill: S.textMuted, fontWeight: 500 }}
+                axisLine={{ stroke: S.grid }}
                 tickLine={false}
-                interval="preserveStartEnd"
+                interval={expanded ? 0 : 'preserveStartEnd'}
                 angle={-45}
                 textAnchor="end"
               />
               <YAxis
                 orientation="right"
-                tick={{ fontSize: 11, fill: SPREADS.textMuted, fontWeight: 500 }}
+                tick={{ fontSize: 11, fill: S.textMuted, fontWeight: 500 }}
                 axisLine={false}
                 tickLine={false}
                 tickFormatter={valueFormatter}
-                width={55}
+                width={60}
               />
-              <Tooltip content={<SpreadsTooltip valueFormatter={valueFormatter} />} cursor={{ fill: 'rgba(27,58,45,0.06)' }} />
-              <Bar
-                dataKey="value"
-                radius={[3, 3, 0, 0]}
-                animationBegin={animationDelay}
-                animationDuration={800}
-                animationEasing="ease-out"
-              >
+              <Tooltip content={<SpreadsTooltip valueFormatter={valueFormatter} />} cursor={{ fill: `${brandColor}08` }} />
+              <Bar dataKey="value" radius={[3, 3, 0, 0]} animationBegin={animationDelay} animationDuration={800} animationEasing="ease-out">
                 {data.map((_, index) => (
-                  <Cell
-                    key={index}
-                    fill={index === isLastIndex ? barColor : SPREADS.barMuted}
-                    fillOpacity={index === isLastIndex ? 1 : 0.7 + (index / data.length) * 0.3}
-                  />
+                  <Cell key={index} fill={index === lastIdx ? brandColor : mutedColor} />
                 ))}
               </Bar>
             </BarChart>
           ) : (
-            <LineChart data={data} margin={{ top: 15, right: 50, bottom: 25, left: 10 }}>
+            <LineChart data={data} margin={{ top: 15, right: 55, bottom: 30, left: 10 }}>
               <XAxis
                 dataKey="quarter"
-                tick={{ fontSize: 11, fill: SPREADS.textMuted, fontWeight: 500 }}
-                axisLine={{ stroke: SPREADS.grid }}
+                tick={{ fontSize: expanded ? 12 : 11, fill: S.textMuted, fontWeight: 500 }}
+                axisLine={{ stroke: S.grid }}
                 tickLine={false}
-                interval="preserveStartEnd"
+                interval={expanded ? 0 : 'preserveStartEnd'}
                 angle={-45}
                 textAnchor="end"
               />
               <YAxis
                 orientation="right"
-                tick={{ fontSize: 11, fill: SPREADS.textMuted, fontWeight: 500 }}
+                tick={{ fontSize: 11, fill: S.textMuted, fontWeight: 500 }}
                 axisLine={false}
                 tickLine={false}
                 tickFormatter={valueFormatter}
-                width={55}
+                width={60}
               />
               <Tooltip content={<SpreadsTooltip valueFormatter={valueFormatter} />} />
               <Line
                 type="monotone"
                 dataKey="value"
-                stroke={barColor}
+                stroke={brandColor}
                 strokeWidth={2.5}
-                dot={{ r: 4, fill: barColor, strokeWidth: 0 }}
-                activeDot={{ r: 6, fill: barColor, stroke: '#fff', strokeWidth: 2 }}
+                dot={{ r: expanded ? 5 : 4, fill: brandColor, strokeWidth: 0 }}
+                activeDot={{ r: 7, fill: brandColor, stroke: '#fff', strokeWidth: 2 }}
                 animationBegin={animationDelay}
                 animationDuration={1000}
                 animationEasing="ease-out"
@@ -297,243 +290,212 @@ function SpreadsChart({
       {/* Watermark */}
       <div className="flex justify-end items-center gap-1.5 px-5 pb-3">
         <Image src="/spreads-logo.jpg" alt="" width={14} height={14} className="rounded-sm opacity-40" />
-        <span className="text-[10px] font-semibold tracking-widest uppercase" style={{ color: SPREADS.textDim }}>
-          Spreads
-        </span>
+        <span className="text-[10px] font-semibold tracking-widest uppercase" style={{ color: S.textDim }}>Spreads</span>
       </div>
     </div>
   )
 }
 
-// ─── Multi-Series Chart (Balance Sheet, Debt vs Cash) ───
+// Wrapper that adds click-to-expand
+function ExpandableChart({ config, height }: { config: ChartConfig; height?: number }) {
+  const [expanded, setExpanded] = useState(false)
 
-interface MultiBarData {
-  quarter: string
-  [key: string]: string | number
+  return (
+    <>
+      <div
+        className="rounded-2xl overflow-hidden cursor-pointer transition-shadow hover:shadow-lg group"
+        style={{ backgroundColor: S.bg, animation: `fadeUp 0.5s ease-out ${config.animationDelay || 0}ms both` }}
+        onClick={() => setExpanded(true)}
+      >
+        <div className="absolute top-3 right-3 z-10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+          <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ backgroundColor: `${S.green}15` }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={S.green} strokeWidth={2}>
+              <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+            </svg>
+          </div>
+        </div>
+        <div className="relative">
+          <SpreadsChart config={config} height={height} />
+        </div>
+      </div>
+      <ChartModal open={expanded} onClose={() => setExpanded(false)}>
+        <SpreadsChart config={config} expanded />
+      </ChartModal>
+    </>
+  )
 }
 
-function SpreadsMultiChart({
-  title, symbol, companyName, logo,
-  data, series, animationDelay = 0,
-}: {
+// ─── Multi-Series Expandable Chart ───
+
+interface MultiChartConfig {
   title: string
   symbol: string
   companyName: string
   logo?: string
-  data: MultiBarData[]
+  data: Array<Record<string, string | number>>
   series: Array<{ key: string; label: string; color: string }>
   animationDelay?: number
-}) {
+}
+
+function SpreadsMultiChartInner({ config, height = 320, expanded = false }: { config: MultiChartConfig; height?: number; expanded?: boolean }) {
+  const { title, symbol, companyName, logo, data, series, animationDelay = 0 } = config
+
   return (
-    <div
-      className="rounded-2xl overflow-hidden"
-      style={{
-        backgroundColor: SPREADS.bg,
-        animation: `fadeUp 0.5s ease-out ${animationDelay}ms both`,
-      }}
-    >
+    <div className={expanded ? 'p-6' : ''}>
       <div className="px-6 pt-5 pb-2">
         <div className="flex items-center gap-3 mb-1">
           <StockLogo symbol={symbol} name={companyName} logo={logo} size="md" />
           <div>
-            <h3 className="text-xl font-bold" style={{ color: SPREADS.text }}>{title}</h3>
+            <h3 className={`font-bold ${expanded ? 'text-2xl' : 'text-lg'}`} style={{ color: S.text }}>{title}</h3>
             <div className="flex items-center gap-2">
-              <span className="text-sm" style={{ color: SPREADS.textMuted }}>{companyName}</span>
-              <span className="text-sm font-bold" style={{ color: SPREADS.accent }}>${symbol}</span>
+              <span className="text-sm" style={{ color: S.textMuted }}>{companyName}</span>
+              <span className="text-sm font-bold" style={{ color: S.green }}>${symbol}</span>
             </div>
           </div>
         </div>
       </div>
-
       <div className="px-3 pb-2">
-        <ResponsiveContainer width="100%" height={280}>
-          <BarChart data={data} margin={{ top: 15, right: 50, bottom: 25, left: 10 }}>
-            <XAxis
-              dataKey="quarter"
-              tick={{ fontSize: 11, fill: SPREADS.textMuted, fontWeight: 500 }}
-              axisLine={{ stroke: SPREADS.grid }}
-              tickLine={false}
-              interval="preserveStartEnd"
-              angle={-45}
-              textAnchor="end"
-            />
-            <YAxis
-              orientation="right"
-              tick={{ fontSize: 11, fill: SPREADS.textMuted, fontWeight: 500 }}
-              axisLine={false}
-              tickLine={false}
-              tickFormatter={formatCompact}
-              width={55}
-            />
-            <Tooltip content={<SpreadsTooltip valueFormatter={formatCompact} />} cursor={{ fill: 'rgba(27,58,45,0.06)' }} />
+        <ResponsiveContainer width="100%" height={expanded ? 450 : height}>
+          <BarChart data={data} margin={{ top: 15, right: 55, bottom: 30, left: 10 }}>
+            <XAxis dataKey="quarter" tick={{ fontSize: expanded ? 12 : 11, fill: S.textMuted, fontWeight: 500 }} axisLine={{ stroke: S.grid }} tickLine={false} interval={expanded ? 0 : 'preserveStartEnd'} angle={-45} textAnchor="end" />
+            <YAxis orientation="right" tick={{ fontSize: 11, fill: S.textMuted, fontWeight: 500 }} axisLine={false} tickLine={false} tickFormatter={formatCompact} width={60} />
+            <Tooltip content={<SpreadsTooltip valueFormatter={formatCompact} />} cursor={{ fill: 'rgba(27,58,45,0.05)' }} />
             {series.map((s, i) => (
-              <Bar
-                key={s.key}
-                dataKey={s.key}
-                name={s.label}
-                fill={s.color}
-                radius={[2, 2, 0, 0]}
-                animationBegin={animationDelay + i * 150}
-                animationDuration={800}
-                animationEasing="ease-out"
-              />
+              <Bar key={s.key} dataKey={s.key} name={s.label} fill={s.color} radius={[2, 2, 0, 0]} animationBegin={(animationDelay || 0) + i * 150} animationDuration={800} animationEasing="ease-out" />
             ))}
           </BarChart>
         </ResponsiveContainer>
       </div>
-
-      {/* Legend */}
       <div className="flex justify-center gap-5 pb-2">
         {series.map(s => (
-          <span key={s.key} className="flex items-center gap-1.5 text-xs font-medium" style={{ color: SPREADS.textMuted }}>
+          <span key={s.key} className="flex items-center gap-1.5 text-xs font-medium" style={{ color: S.textMuted }}>
             <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ backgroundColor: s.color }} />
             {s.label}
           </span>
         ))}
       </div>
-
       <div className="flex justify-end items-center gap-1.5 px-5 pb-3">
         <Image src="/spreads-logo.jpg" alt="" width={14} height={14} className="rounded-sm opacity-40" />
-        <span className="text-[10px] font-semibold tracking-widest uppercase" style={{ color: SPREADS.textDim }}>
-          Spreads
-        </span>
+        <span className="text-[10px] font-semibold tracking-widest uppercase" style={{ color: S.textDim }}>Spreads</span>
       </div>
     </div>
   )
 }
 
+function ExpandableMultiChart({ config, height }: { config: MultiChartConfig; height?: number }) {
+  const [expanded, setExpanded] = useState(false)
+  return (
+    <>
+      <div
+        className="rounded-2xl overflow-hidden cursor-pointer transition-shadow hover:shadow-lg relative group"
+        style={{ backgroundColor: S.bg, animation: `fadeUp 0.5s ease-out ${config.animationDelay || 0}ms both` }}
+        onClick={() => setExpanded(true)}
+      >
+        <SpreadsMultiChartInner config={config} height={height} />
+      </div>
+      <ChartModal open={expanded} onClose={() => setExpanded(false)}>
+        <SpreadsMultiChartInner config={config} expanded />
+      </ChartModal>
+    </>
+  )
+}
+
 // ─── Fundamentals Section ───
 
-function FundamentalsSection({ data, symbol, companyName, logo }: {
-  data: FundamentalsData
-  symbol: string
-  companyName: string
-  logo?: string
+function FundamentalsSection({ data, symbol, companyName, logo, brandColor }: {
+  data: FundamentalsData; symbol: string; companyName: string; logo?: string; brandColor: string
 }) {
   const quarters = useMemo(() => {
     const sorted = [...data.quarters].sort((a, b) => a.date.localeCompare(b.date))
-    return sorted.slice(-16)
+    return sorted.slice(-20)
   }, [data.quarters])
 
-  const revenueData = useMemo(() =>
-    quarters.filter(q => q.revenue != null).map(q => ({ quarter: formatQuarterLabel(q.date), value: q.revenue! })),
+  const mkData = useCallback((field: keyof QuarterData) =>
+    quarters.filter(q => q[field] != null).map(q => ({ quarter: formatQuarterLabel(q.date), value: q[field] as number })),
     [quarters]
   )
-  const epsData = useMemo(() =>
-    quarters.filter(q => q.eps != null).map(q => ({ quarter: formatQuarterLabel(q.date), value: q.eps! })),
-    [quarters]
-  )
-  const netIncomeData = useMemo(() =>
-    quarters.filter(q => q.netIncome != null).map(q => ({ quarter: formatQuarterLabel(q.date), value: q.netIncome! })),
-    [quarters]
-  )
-  const fcfData = useMemo(() =>
-    quarters.filter(q => q.freeCashFlow != null).map(q => ({ quarter: formatQuarterLabel(q.date), value: q.freeCashFlow! })),
-    [quarters]
-  )
+
+  const revenueData = useMemo(() => mkData('revenue'), [mkData])
+  const epsData = useMemo(() => mkData('eps'), [mkData])
+  const netIncomeData = useMemo(() => mkData('netIncome'), [mkData])
+  const fcfData = useMemo(() => mkData('freeCashFlow'), [mkData])
+
   const balanceSheetData = useMemo(() =>
-    quarters
-      .filter(q => q.totalAssets != null || q.totalLiabilities != null)
-      .map(q => ({
-        quarter: formatQuarterLabel(q.date),
-        assets: q.totalAssets ?? 0,
-        liabilities: q.totalLiabilities ?? 0,
-        equity: q.stockholdersEquity ?? 0,
-      })),
-    [quarters]
-  )
+    quarters.filter(q => q.totalAssets != null || q.totalLiabilities != null).map(q => ({
+      quarter: formatQuarterLabel(q.date), assets: q.totalAssets ?? 0, liabilities: q.totalLiabilities ?? 0, equity: q.stockholdersEquity ?? 0,
+    })), [quarters])
+
   const debtCashData = useMemo(() =>
-    quarters
-      .filter(q => q.totalDebt != null || q.cashAndEquivalents != null)
-      .map(q => ({
-        quarter: formatQuarterLabel(q.date),
-        debt: q.totalDebt ?? 0,
-        cash: q.cashAndEquivalents ?? 0,
-      })),
-    [quarters]
-  )
+    quarters.filter(q => q.totalDebt != null || q.cashAndEquivalents != null).map(q => ({
+      quarter: formatQuarterLabel(q.date), debt: q.totalDebt ?? 0, cash: q.cashAndEquivalents ?? 0,
+    })), [quarters])
 
   if (revenueData.length === 0 && epsData.length === 0) return null
 
-  const logoUrl = `https://static2.finnhub.io/file/publicdatany/finnhubimage/stock_logo/${symbol}.png`
+  const chartHeight = 350
+
+  const charts: Array<{ config: ChartConfig } | { multi: MultiChartConfig }> = []
+
+  if (revenueData.length > 0)
+    charts.push({ config: { title: 'Quarterly Revenue', symbol, companyName, logo, data: revenueData, brandColor, animationDelay: 0 } })
+  if (epsData.length > 0)
+    charts.push({ config: { title: 'Earnings Per Share', symbol, companyName, logo, data: epsData, type: 'line', brandColor, valueFormatter: (v: number) => `$${v.toFixed(2)}`, animationDelay: 150 } })
+  if (netIncomeData.length > 0)
+    charts.push({ config: { title: 'Net Income', symbol, companyName, logo, data: netIncomeData, brandColor, animationDelay: 300 } })
+  if (fcfData.length > 0)
+    charts.push({ config: { title: 'Free Cash Flow', symbol, companyName, logo, data: fcfData, brandColor, animationDelay: 450 } })
 
   return (
     <div className="space-y-6">
+      {/* Title */}
+      <h2 className="text-xl font-bold" style={{ color: S.text }}>Fundamentals</h2>
+
+      {/* Single-series charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {revenueData.length > 0 && (
-          <SpreadsChart
-            title="Quarterly Revenue"
-            symbol={symbol}
-            companyName={companyName}
-            logo={logoUrl}
-            data={revenueData}
-            animationDelay={0}
-          />
-        )}
-        {epsData.length > 0 && (
-          <SpreadsChart
-            title="Earnings Per Share"
-            symbol={symbol}
-            companyName={companyName}
-            logo={logoUrl}
-            data={epsData}
-            type="line"
-            color={SPREADS.accent}
-            valueFormatter={(v) => `$${v.toFixed(2)}`}
-            animationDelay={200}
-          />
-        )}
-        {netIncomeData.length > 0 && (
-          <SpreadsChart
-            title="Net Income"
-            symbol={symbol}
-            companyName={companyName}
-            logo={logoUrl}
-            data={netIncomeData}
-            animationDelay={400}
-          />
-        )}
-        {fcfData.length > 0 && (
-          <SpreadsChart
-            title="Free Cash Flow"
-            symbol={symbol}
-            companyName={companyName}
-            logo={logoUrl}
-            data={fcfData}
-            color={SPREADS.greenLight}
-            animationDelay={600}
-          />
-        )}
-        {balanceSheetData.length > 0 && (
-          <SpreadsMultiChart
-            title="Balance Sheet"
-            symbol={symbol}
-            companyName={companyName}
-            logo={logoUrl}
-            data={balanceSheetData}
-            series={[
-              { key: 'assets', label: 'Assets', color: '#3b82f6' },
-              { key: 'liabilities', label: 'Liabilities', color: SPREADS.red },
-              { key: 'equity', label: 'Equity', color: SPREADS.accent },
-            ]}
-            animationDelay={800}
-          />
-        )}
-        {debtCashData.length > 0 && (
-          <SpreadsMultiChart
-            title="Debt vs Cash"
-            symbol={symbol}
-            companyName={companyName}
-            logo={logoUrl}
-            data={debtCashData}
-            series={[
-              { key: 'debt', label: 'Total Debt', color: SPREADS.red },
-              { key: 'cash', label: 'Cash', color: SPREADS.accent },
-            ]}
-            animationDelay={1000}
-          />
+        {charts.map((c, i) =>
+          'config' in c ? <ExpandableChart key={i} config={c.config} height={chartHeight} /> : null
         )}
       </div>
+
+      {/* Multi-series charts */}
+      {(balanceSheetData.length > 0 || debtCashData.length > 0) && (
+        <>
+          <h2 className="text-xl font-bold mt-4" style={{ color: S.text }}>Balance Sheet</h2>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {balanceSheetData.length > 0 && (
+              <ExpandableMultiChart
+                config={{
+                  title: 'Assets vs Liabilities',
+                  symbol, companyName, logo,
+                  data: balanceSheetData,
+                  series: [
+                    { key: 'assets', label: 'Assets', color: '#3b82f6' },
+                    { key: 'liabilities', label: 'Liabilities', color: S.red },
+                    { key: 'equity', label: 'Equity', color: S.accent },
+                  ],
+                  animationDelay: 600,
+                }}
+                height={chartHeight}
+              />
+            )}
+            {debtCashData.length > 0 && (
+              <ExpandableMultiChart
+                config={{
+                  title: 'Debt vs Cash',
+                  symbol, companyName, logo,
+                  data: debtCashData,
+                  series: [
+                    { key: 'debt', label: 'Total Debt', color: S.red },
+                    { key: 'cash', label: 'Cash', color: S.accent },
+                  ],
+                  animationDelay: 750,
+                }}
+                height={chartHeight}
+              />
+            )}
+          </div>
+        </>
+      )}
     </div>
   )
 }
@@ -547,12 +509,10 @@ export default function StockDetailPage() {
   const symbol = typeof params.symbol === 'string' ? params.symbol.toUpperCase() : ''
 
   const [stock, setStock] = useState<Stock | null>(null)
-  const [allStocks, setAllStocks] = useState<Stock[]>([])
   const [fundamentals, setFundamentals] = useState<FundamentalsData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Save to recently viewed
   useEffect(() => {
     if (!symbol) return
     try {
@@ -565,25 +525,20 @@ export default function StockDetailPage() {
     } catch { /* */ }
   }, [symbol])
 
-  // Fetch stock price data
   useEffect(() => {
     if (!symbol) return
-    setLoading(true)
-    setError(null)
+    setLoading(true); setError(null)
     fetch('/api/stocks')
       .then(r => r.json())
       .then(result => {
-        const allData = result.data || []
-        setAllStocks(allData)
-        const found = allData.find((s: Stock) => s.symbol === symbol)
+        const found = (result.data || []).find((s: Stock) => s.symbol === symbol)
         if (found) setStock(found)
         else setError('Stock not found')
       })
-      .catch(() => setError('Failed to load stock data'))
+      .catch(() => setError('Failed to load'))
       .finally(() => setLoading(false))
   }, [symbol])
 
-  // Fetch fundamentals
   useEffect(() => {
     if (!symbol) return
     fetch(`/data/stocks/${symbol}.json`)
@@ -592,7 +547,6 @@ export default function StockDetailPage() {
       .catch(() => {})
   }, [symbol])
 
-  // All hooks before conditional returns
   const computedMarketCap = useMemo(() => {
     if (stock?.marketCap && stock.marketCap > 0) return stock.marketCap
     if (!stock || !fundamentals) return 0
@@ -604,9 +558,7 @@ export default function StockDetailPage() {
 
   const ttmStats = useMemo(() => {
     if (!fundamentals) return null
-    const sorted = [...fundamentals.quarters]
-      .filter(q => q.revenue != null)
-      .sort((a, b) => b.date.localeCompare(a.date))
+    const sorted = [...fundamentals.quarters].filter(q => q.revenue != null).sort((a, b) => b.date.localeCompare(a.date))
     const last4 = sorted.slice(0, 4)
     if (last4.length < 4) return null
     const ttmRev = last4.reduce((s, q) => s + (q.revenue || 0), 0)
@@ -622,31 +574,24 @@ export default function StockDetailPage() {
     return sorted.find(q => q.totalAssets != null) || null
   }, [fundamentals])
 
+  const brandColor = useMemo(() => getBrandColor(symbol, stock?.sector), [symbol, stock?.sector])
   const isPositive = (stock?.changesPercentage ?? 0) >= 0
 
-  // ─── Loading State ───
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--bg-primary)' }}>
-        <div className="w-10 h-10 rounded-full border-3 border-t-transparent animate-spin" style={{ borderColor: SPREADS.greenDim, borderTopColor: SPREADS.green }} />
+        <div className="w-10 h-10 rounded-full border-[3px] border-t-transparent animate-spin" style={{ borderColor: S.greenDim, borderTopColor: S.green }} />
       </div>
     )
   }
 
-  // ─── Error State ───
   if (error || !stock) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--bg-primary)' }}>
         <div className="text-center">
-          <h1 className="text-2xl font-bold mb-4" style={{ color: SPREADS.green }}>
-            {error || 'Stock Not Found'}
-          </h1>
-          <p className="mb-6" style={{ color: SPREADS.textMuted }}>
-            Unable to find data for: {symbol}
-          </p>
-          <Link href="/" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-white" style={{ backgroundColor: SPREADS.green }}>
-            Back to Dashboard
-          </Link>
+          <h1 className="text-2xl font-bold mb-4" style={{ color: S.green }}>{error || 'Stock Not Found'}</h1>
+          <p className="mb-6" style={{ color: S.textMuted }}>Unable to find data for: {symbol}</p>
+          <Link href="/" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-white" style={{ backgroundColor: S.green }}>Back to Dashboard</Link>
         </div>
       </div>
     )
@@ -656,199 +601,136 @@ export default function StockDetailPage() {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: 'var(--bg-primary)' }}>
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
 
-        {/* ─── Top Nav ─── */}
+        {/* Nav */}
         <div className="flex items-center gap-3 mb-6">
-          <button
-            onClick={() => router.back()}
-            className="p-2 rounded-xl transition-colors hover:opacity-70"
-            style={{ color: SPREADS.green }}
-          >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-            </svg>
+          <button onClick={() => router.back()} className="p-2 rounded-xl hover:opacity-70" style={{ color: S.green }}>
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
           </button>
           <Link href="/" className="flex items-center gap-2">
             <Image src="/spreads-logo.jpg" alt="Spreads" width={24} height={24} className="rounded-md" />
-            <span className="text-sm font-semibold" style={{ color: SPREADS.green }}>Spreads</span>
+            <span className="text-sm font-semibold" style={{ color: S.green }}>Spreads</span>
           </Link>
         </div>
 
-        {/* ─── Stock Header + Price Widget ─── */}
-        <div
-          className="rounded-2xl p-6 mb-6"
-          style={{
-            backgroundColor: SPREADS.bg,
-            animation: 'fadeUp 0.4s ease-out both',
-          }}
-        >
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            {/* Left: Logo + Name */}
-            <div className="flex items-center gap-4">
-              <StockLogo symbol={stock.symbol} name={stock.name} logo={logoUrl} size="xl" />
-              <div>
-                <div className="flex items-center gap-3 flex-wrap">
-                  <h1 className="text-3xl font-bold" style={{ color: SPREADS.text }}>
-                    {stock.symbol}
-                  </h1>
-                  <span
-                    className="text-xs font-semibold px-2.5 py-1 rounded-full"
-                    style={{ backgroundColor: `${SPREADS.green}15`, color: SPREADS.green }}
-                  >
-                    {stock.sector}
-                  </span>
+        {/* ─── Price Widget (left) + Chart (right) ─── */}
+        <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-6 mb-8">
+          {/* Price Widget — Square Card */}
+          <div
+            className="rounded-2xl p-6 flex flex-col justify-between aspect-auto lg:aspect-square"
+            style={{ backgroundColor: S.bg, animation: 'fadeUp 0.4s ease-out both' }}
+          >
+            {/* Top: Logo + Name */}
+            <div>
+              <div className="flex items-center gap-3 mb-4">
+                <StockLogo symbol={stock.symbol} name={stock.name} logo={logoUrl} size="xl" />
+                <div>
+                  <h1 className="text-2xl font-bold" style={{ color: S.text }}>{stock.symbol}</h1>
+                  <p className="text-sm" style={{ color: S.textMuted }}>{stock.name}</p>
                 </div>
-                <p className="text-sm mt-0.5" style={{ color: SPREADS.textMuted }}>{stock.name}</p>
               </div>
+              <span className="text-xs font-semibold px-2.5 py-1 rounded-full" style={{ backgroundColor: `${brandColor}18`, color: brandColor }}>
+                {stock.sector}
+              </span>
             </div>
 
-            {/* Right: Price */}
-            <div className="text-right">
-              <p className="text-3xl sm:text-4xl font-bold" style={{ color: SPREADS.text }}>
+            {/* Middle: Price */}
+            <div className="my-4">
+              <p className="text-4xl font-bold" style={{ color: S.text }}>
                 {stock.price > 0 ? formatCurrency(stock.price) : 'N/A'}
               </p>
               {stock.price > 0 && (
-                <div className="flex items-center justify-end gap-2 mt-1">
-                  <span
-                    className="text-sm font-bold px-2.5 py-0.5 rounded-lg"
-                    style={{
-                      backgroundColor: isPositive ? `${SPREADS.accent}20` : `${SPREADS.red}20`,
-                      color: isPositive ? SPREADS.accent : SPREADS.red,
-                    }}
-                  >
+                <div className="flex items-center gap-2 mt-2">
+                  <span className="text-sm font-bold px-2.5 py-0.5 rounded-lg" style={{ backgroundColor: isPositive ? `${S.accent}20` : `${S.red}20`, color: isPositive ? S.accent : S.red }}>
                     {isPositive ? '+' : ''}{formatPercent(stock.changesPercentage)}
                   </span>
-                  <span className="text-sm font-medium" style={{ color: isPositive ? SPREADS.accent : SPREADS.red }}>
+                  <span className="text-sm font-medium" style={{ color: isPositive ? S.accent : S.red }}>
                     {isPositive ? '+' : ''}{formatCurrency(stock.change)}
                   </span>
                 </div>
               )}
             </div>
+
+            {/* Bottom: Key Stats */}
+            <div className="grid grid-cols-2 gap-3" style={{ borderTop: `1px solid ${S.grid}`, paddingTop: '16px' }}>
+              <div>
+                <p className="text-[10px] font-medium uppercase tracking-wider" style={{ color: S.textDim }}>Market Cap</p>
+                <p className="text-sm font-bold" style={{ color: S.text }}>{computedMarketCap > 0 ? formatLargeCurrency(computedMarketCap) : 'N/A'}</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-medium uppercase tracking-wider" style={{ color: S.textDim }}>P/E Ratio</p>
+                <p className="text-sm font-bold" style={{ color: S.text }}>{stock.pe?.toFixed(1) || 'N/A'}</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-medium uppercase tracking-wider" style={{ color: S.textDim }}>TTM Revenue</p>
+                <p className="text-sm font-bold" style={{ color: S.text }}>{ttmStats?.ttmRev ? formatCompact(ttmStats.ttmRev) : 'N/A'}</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-medium uppercase tracking-wider" style={{ color: S.textDim }}>Net Margin</p>
+                <p className="text-sm font-bold" style={{ color: S.text }}>{ttmStats?.margin != null ? `${ttmStats.margin.toFixed(1)}%` : 'N/A'}</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-medium uppercase tracking-wider" style={{ color: S.textDim }}>TTM EPS</p>
+                <p className="text-sm font-bold" style={{ color: S.text }}>{ttmStats?.ttmEps != null ? `$${ttmStats.ttmEps.toFixed(2)}` : 'N/A'}</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-medium uppercase tracking-wider" style={{ color: S.textDim }}>Dividend</p>
+                <p className="text-sm font-bold" style={{ color: S.text }}>{stock.dividendYield ? `${stock.dividendYield.toFixed(2)}%` : 'N/A'}</p>
+              </div>
+              {balanceSheet && (
+                <>
+                  <div>
+                    <p className="text-[10px] font-medium uppercase tracking-wider" style={{ color: S.textDim }}>Total Debt</p>
+                    <p className="text-sm font-bold" style={{ color: S.text }}>{balanceSheet.totalDebt != null ? formatCompact(balanceSheet.totalDebt) : 'N/A'}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-medium uppercase tracking-wider" style={{ color: S.textDim }}>Cash</p>
+                    <p className="text-sm font-bold" style={{ color: S.text }}>{balanceSheet.cashAndEquivalents != null ? formatCompact(balanceSheet.cashAndEquivalents) : 'N/A'}</p>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
 
-          {/* Key Stats Row */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-5 pt-5" style={{ borderTop: `1px solid ${SPREADS.grid}` }}>
-            <div>
-              <p className="text-xs font-medium uppercase tracking-wide" style={{ color: SPREADS.textDim }}>Market Cap</p>
-              <p className="text-lg font-bold mt-0.5" style={{ color: SPREADS.text }}>
-                {computedMarketCap > 0 ? formatLargeCurrency(computedMarketCap) : 'N/A'}
-              </p>
+          {/* TradingView Chart */}
+          <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: S.bg, animation: 'fadeUp 0.4s ease-out 100ms both' }}>
+            <div className="px-6 pt-4 pb-2 flex items-center justify-between">
+              <h2 className="text-lg font-bold" style={{ color: S.text }}>Price Chart</h2>
+              <span className="text-xs font-medium" style={{ color: S.textDim }}>TradingView</span>
             </div>
-            <div>
-              <p className="text-xs font-medium uppercase tracking-wide" style={{ color: SPREADS.textDim }}>P/E Ratio</p>
-              <p className="text-lg font-bold mt-0.5" style={{ color: SPREADS.text }}>
-                {stock.pe?.toFixed(1) || 'N/A'}
-              </p>
+            <div className="h-[380px] lg:h-full lg:min-h-[400px]">
+              <TradingViewWidget symbol={stock.symbol} theme={theme} />
             </div>
-            <div>
-              <p className="text-xs font-medium uppercase tracking-wide" style={{ color: SPREADS.textDim }}>TTM Revenue</p>
-              <p className="text-lg font-bold mt-0.5" style={{ color: SPREADS.text }}>
-                {ttmStats?.ttmRev ? formatCompact(ttmStats.ttmRev) : 'N/A'}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs font-medium uppercase tracking-wide" style={{ color: SPREADS.textDim }}>Net Margin</p>
-              <p className="text-lg font-bold mt-0.5" style={{ color: SPREADS.text }}>
-                {ttmStats?.margin != null ? `${ttmStats.margin.toFixed(1)}%` : 'N/A'}
-              </p>
-            </div>
-          </div>
-
-          {/* Secondary Stats */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-3">
-            <div>
-              <p className="text-xs font-medium uppercase tracking-wide" style={{ color: SPREADS.textDim }}>TTM EPS</p>
-              <p className="text-base font-bold mt-0.5" style={{ color: SPREADS.text }}>
-                {ttmStats?.ttmEps != null ? `$${ttmStats.ttmEps.toFixed(2)}` : 'N/A'}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs font-medium uppercase tracking-wide" style={{ color: SPREADS.textDim }}>Dividend</p>
-              <p className="text-base font-bold mt-0.5" style={{ color: SPREADS.text }}>
-                {stock.dividendYield ? `${stock.dividendYield.toFixed(2)}%` : 'N/A'}
-              </p>
-            </div>
-            {balanceSheet && (
-              <>
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-wide" style={{ color: SPREADS.textDim }}>Total Debt</p>
-                  <p className="text-base font-bold mt-0.5" style={{ color: SPREADS.text }}>
-                    {balanceSheet.totalDebt != null ? formatCompact(balanceSheet.totalDebt) : 'N/A'}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-wide" style={{ color: SPREADS.textDim }}>Cash</p>
-                  <p className="text-base font-bold mt-0.5" style={{ color: SPREADS.text }}>
-                    {balanceSheet.cashAndEquivalents != null ? formatCompact(balanceSheet.cashAndEquivalents) : 'N/A'}
-                  </p>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* ─── Price Chart ─── */}
-        <div
-          className="rounded-2xl overflow-hidden mb-6"
-          style={{
-            backgroundColor: SPREADS.bg,
-            animation: 'fadeUp 0.4s ease-out 100ms both',
-          }}
-        >
-          <div className="px-6 pt-4 pb-2 flex items-center justify-between">
-            <h2 className="text-lg font-bold" style={{ color: SPREADS.text }}>Price Chart</h2>
-            <span className="text-xs font-medium" style={{ color: SPREADS.textDim }}>TradingView</span>
-          </div>
-          <div className="h-[400px] lg:h-[500px]">
-            <TradingViewWidget symbol={stock.symbol} theme={theme} />
           </div>
         </div>
 
         {/* ─── Trading Range ─── */}
-        {stock.price > 0 && (
-          <div
-            className="rounded-2xl p-6 mb-6"
-            style={{
-              backgroundColor: SPREADS.bg,
-              animation: 'fadeUp 0.4s ease-out 200ms both',
-            }}
-          >
-            <h3 className="text-base font-bold mb-4" style={{ color: SPREADS.text }}>Trading Range</h3>
+        {stock.price > 0 && (stock.dayHigh > 0 || stock.yearHigh > 0) && (
+          <div className="rounded-2xl p-6 mb-8" style={{ backgroundColor: S.bg, animation: 'fadeUp 0.4s ease-out 200ms both' }}>
+            <h3 className="text-base font-bold mb-4" style={{ color: S.text }}>Trading Range</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              {/* Day Range */}
               {stock.dayHigh > 0 && (
                 <div>
-                  <div className="flex justify-between text-xs mb-2" style={{ color: SPREADS.textMuted }}>
-                    <span>Day Low: {formatCurrency(stock.dayLow)}</span>
-                    <span>Day High: {formatCurrency(stock.dayHigh)}</span>
+                  <div className="flex justify-between text-xs mb-2" style={{ color: S.textMuted }}>
+                    <span>{formatCurrency(stock.dayLow)}</span>
+                    <span className="font-medium">Day Range</span>
+                    <span>{formatCurrency(stock.dayHigh)}</span>
                   </div>
-                  <div className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: SPREADS.grid }}>
-                    <div
-                      className="h-full rounded-full transition-all duration-700"
-                      style={{
-                        backgroundColor: SPREADS.green,
-                        width: `${Math.min(100, Math.max(0, ((stock.price - stock.dayLow) / (stock.dayHigh - stock.dayLow)) * 100))}%`,
-                      }}
-                    />
+                  <div className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: S.grid }}>
+                    <div className="h-full rounded-full transition-all duration-700" style={{ backgroundColor: brandColor, width: `${Math.min(100, Math.max(0, ((stock.price - stock.dayLow) / (stock.dayHigh - stock.dayLow)) * 100))}%` }} />
                   </div>
                 </div>
               )}
-              {/* 52-Week Range */}
               {stock.yearHigh > 0 && (
                 <div>
-                  <div className="flex justify-between text-xs mb-2" style={{ color: SPREADS.textMuted }}>
-                    <span>52W Low: {formatCurrency(stock.yearLow)}</span>
-                    <span>52W High: {formatCurrency(stock.yearHigh)}</span>
+                  <div className="flex justify-between text-xs mb-2" style={{ color: S.textMuted }}>
+                    <span>{formatCurrency(stock.yearLow)}</span>
+                    <span className="font-medium">52-Week Range</span>
+                    <span>{formatCurrency(stock.yearHigh)}</span>
                   </div>
-                  <div className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: SPREADS.grid }}>
-                    <div
-                      className="h-full rounded-full transition-all duration-700"
-                      style={{
-                        backgroundColor: SPREADS.cream,
-                        width: `${Math.min(100, Math.max(0, ((stock.price - stock.yearLow) / (stock.yearHigh - stock.yearLow)) * 100))}%`,
-                      }}
-                    />
+                  <div className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: S.grid }}>
+                    <div className="h-full rounded-full transition-all duration-700" style={{ backgroundColor: S.cream, width: `${Math.min(100, Math.max(0, ((stock.price - stock.yearLow) / (stock.yearHigh - stock.yearLow)) * 100))}%` }} />
                   </div>
                 </div>
               )}
@@ -863,19 +745,14 @@ export default function StockDetailPage() {
             symbol={stock.symbol}
             companyName={stock.name}
             logo={logoUrl}
+            brandColor={brandColor}
           />
         )}
 
-        {/* ─── Back Button ─── */}
-        <div className="mt-8 mb-4 flex justify-center">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-medium transition-opacity hover:opacity-80"
-            style={{ backgroundColor: SPREADS.green, color: '#fff' }}
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-            </svg>
+        {/* Back */}
+        <div className="mt-10 mb-6 flex justify-center">
+          <Link href="/" className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-medium hover:opacity-80 transition-opacity" style={{ backgroundColor: S.green, color: '#fff' }}>
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
             Back to Dashboard
           </Link>
         </div>
