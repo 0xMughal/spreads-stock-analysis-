@@ -27,7 +27,10 @@ const publicRoutes = [
   "/api/compound-calculations",
   "/api/portfolio",
   "/api/watchlist",
+  "/api/insider-trades",
   "/watchlist",
+  "/screener",
+  "/insiders",
   "/data",
 ]
 
