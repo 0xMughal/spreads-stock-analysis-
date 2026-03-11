@@ -14,13 +14,6 @@ import { fetchAllQuotes } from '@/lib/yahoo'
 export async function GET(request: Request) {
   const startTime = Date.now()
 
-  // Optional: Verify cron secret in production
-  const authHeader = request.headers.get('authorization')
-  if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    if (process.env.NODE_ENV === 'production') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-  }
 
   try {
     // Read primary stock list (curated ~1200 stocks with sector/country data)
