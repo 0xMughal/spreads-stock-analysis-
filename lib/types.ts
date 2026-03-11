@@ -12,6 +12,7 @@ export interface Stock {
   sector: string
   industry: string
   exchange: string
+  country: string
   volume: number
   avgVolume: number
   dayHigh: number
@@ -245,7 +246,7 @@ export interface EarningsCalendarResponse {
   earningsCalendar: EarningsEvent[]
 }
 
-export type TabType = 'dashboard' | 'watchlist' | 'pe-ratio' | 'earnings' | 'revenue-growth' | 'dividends' | 'compound-interest' | 'portfolio' | 'heatmap'
+export type TabType = 'dashboard' | 'watchlist' | 'pe-ratio' | 'earnings' | 'revenue-growth' | 'eps-growth' | 'net-income' | 'net-margin' | 'earnings-power' | 'dividends' | 'compound-interest' | 'portfolio' | 'heatmap'
 
 // Compound Interest Calculator Types
 export interface CompoundInterestCalculation {

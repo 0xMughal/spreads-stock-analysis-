@@ -84,6 +84,7 @@ function buildStock(
     sector: metadata.sector,
     industry: metadata.industry,
     exchange: 'NYSE',
+    country: 'US',
     volume: volumeData?.volume ?? 0,
     avgVolume: volumeData?.avgVolume ?? 0,
     dayHigh: quote.h,

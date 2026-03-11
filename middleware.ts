@@ -5,12 +5,13 @@ import { auth } from "@/auth"
 const publicRoutes = [
   "/",
   "/login",
+  "/stock",
   "/api/auth",
   "/api/stocks",
   "/api/nasdaq100",
   "/api/international",
   "/api/cron",
-  "/api/debug-auth", // Temporary - remove after debugging
+  "/api/debug-auth",
   "/api/historical-pe",
   "/api/revenue-growth",
   "/api/reddit-sentiment",
@@ -25,6 +26,7 @@ const publicRoutes = [
   "/api/earnings",
   "/api/compound-calculations",
   "/api/portfolio",
+  "/data",
 ]
 
 // Admin-only routes

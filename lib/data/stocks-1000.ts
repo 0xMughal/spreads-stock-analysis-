@@ -73,7 +73,7 @@ export const STOCKS_1000: StockMetadata[] = [
   { symbol: "MANH", name: "Manhattan Associates", sector: "Technology", industry: "Software - Application" },
   { symbol: "CYBR", name: "CyberArk Software", sector: "Technology", industry: "Software - Infrastructure" },
   { symbol: "CFLT", name: "Confluent Inc.", sector: "Technology", industry: "Software - Infrastructure" },
-  { symbol: "SAMSN", name: "SentinelOne", sector: "Technology", industry: "Software - Infrastructure" },
+  { symbol: "WK", name: "Workiva Inc.", sector: "Technology", industry: "Software - Application" },
   { symbol: "DOCN", name: "DigitalOcean Holdings", sector: "Technology", industry: "Software - Infrastructure" },
   { symbol: "ESTC", name: "Elastic N.V.", sector: "Technology", industry: "Software - Infrastructure" },
   { symbol: "PTC", name: "PTC Inc.", sector: "Technology", industry: "Software - Application" },
@@ -578,7 +578,7 @@ export const STOCKS_1000: StockMetadata[] = [
   { symbol: "TXT", name: "Textron Inc.", sector: "Industrials", industry: "Aerospace & Defense" },
   { symbol: "SPR", name: "Spirit AeroSystems", sector: "Industrials", industry: "Aerospace & Defense" },
   { symbol: "AXON", name: "Axon Enterprise", sector: "Industrials", industry: "Aerospace & Defense" },
-  { symbol: "PLTR", name: "Palantir Technologies", sector: "Industrials", industry: "Defense Technology" },
+  { symbol: "MRCY", name: "Mercury Systems", sector: "Industrials", industry: "Aerospace & Defense" },
   { symbol: "KTOS", name: "Kratos Defense & Security", sector: "Industrials", industry: "Aerospace & Defense" },
   { symbol: "RKLB", name: "Rocket Lab USA", sector: "Industrials", industry: "Aerospace & Defense" },
 
@@ -597,7 +597,6 @@ export const STOCKS_1000: StockMetadata[] = [
   { symbol: "CMI", name: "Cummins Inc.", sector: "Industrials", industry: "Specialty Industrial Machinery" },
   { symbol: "OTIS", name: "Otis Worldwide", sector: "Industrials", industry: "Specialty Industrial Machinery" },
   { symbol: "CARR", name: "Carrier Global", sector: "Industrials", industry: "Building Products" },
-  { symbol: "A.O.SMITH", name: "A.O. Smith Corporation", sector: "Industrials", industry: "Specialty Industrial Machinery" },
   { symbol: "AOS", name: "A.O. Smith Corporation", sector: "Industrials", industry: "Specialty Industrial Machinery" },
   { symbol: "IR", name: "Ingersoll Rand", sector: "Industrials", industry: "Specialty Industrial Machinery" },
   { symbol: "GNRC", name: "Generac Holdings", sector: "Industrials", industry: "Specialty Industrial Machinery" },
@@ -899,7 +898,7 @@ export const STOCKS_1000: StockMetadata[] = [
   { symbol: "S", name: "SentinelOne", sector: "Technology", industry: "Software - Infrastructure" },
   { symbol: "DUOL", name: "Duolingo Inc.", sector: "Technology", industry: "Software - Application" },
   { symbol: "APP", name: "AppLovin Corporation", sector: "Technology", industry: "Software - Application" },
-  { symbol: "DKNG", name: "DraftKings", sector: "Technology", industry: "Software - Application" },
+  { symbol: "BRZE", name: "Braze Inc.", sector: "Technology", industry: "Software - Application" },
 
   // Crypto / Blockchain-adjacent
   { symbol: "MSTR", name: "MicroStrategy", sector: "Technology", industry: "Software - Application" },
@@ -920,7 +919,7 @@ export const STOCKS_1000: StockMetadata[] = [
 
   // Consumer / Media (additional)
   { symbol: "PTON", name: "Peloton Interactive", sector: "Consumer Discretionary", industry: "Leisure" },
-  { symbol: "SONO", name: "Sonos Inc.", sector: "Technology", industry: "Consumer Electronics" },
+  { symbol: "LAZR", name: "Luminar Technologies", sector: "Technology", industry: "Consumer Electronics" },
   { symbol: "GPRO", name: "GoPro Inc.", sector: "Technology", industry: "Consumer Electronics" },
   { symbol: "FUBO", name: "fuboTV Inc.", sector: "Communication Services", industry: "Entertainment" },
   { symbol: "DLO", name: "DLocal Limited", sector: "Technology", industry: "Financial Technology" },
@@ -936,7 +935,7 @@ export const STOCKS_1000: StockMetadata[] = [
   { symbol: "TMDX", name: "TransMedics Group", sector: "Healthcare", industry: "Medical Devices" },
   { symbol: "AXSM", name: "Axsome Therapeutics", sector: "Healthcare", industry: "Pharmaceuticals" },
   { symbol: "VERA", name: "Vera Therapeutics", sector: "Healthcare", industry: "Biotechnology" },
-  { symbol: "PCVX", name: "Vaxcyte", sector: "Healthcare", industry: "Biotechnology" },
+  { symbol: "TWST", name: "Twist Bioscience", sector: "Healthcare", industry: "Biotechnology" },
   { symbol: "SNDX", name: "Syndax Pharmaceuticals", sector: "Healthcare", industry: "Biotechnology" },
 
   // Industrial / Infrastructure Mid-Cap
@@ -991,7 +990,7 @@ export const STOCKS_1000: StockMetadata[] = [
   { symbol: "KWR", name: "Quaker Houghton", sector: "Materials", industry: "Specialty Chemicals" },
   { symbol: "UFPI", name: "UFP Industries", sector: "Materials", industry: "Lumber & Wood Production" },
   { symbol: "BECN", name: "Beacon Roofing Supply", sector: "Materials", industry: "Building Products Distribution" },
-  { symbol: "STLD", name: "Steel Dynamics", sector: "Materials", industry: "Steel" },
+  { symbol: "RYAM", name: "Rayonier Advanced Materials", sector: "Materials", industry: "Specialty Chemicals" },
   { symbol: "SON", name: "Sonoco Products", sector: "Materials", industry: "Packaging & Containers" },
 
   // REIT Mid-Cap
@@ -1079,13 +1078,12 @@ export const STOCKS_1000: StockMetadata[] = [
   { symbol: "YETI", name: "YETI Holdings", sector: "Consumer Discretionary", industry: "Leisure" },
   { symbol: "FOXF", name: "Fox Factory Holding", sector: "Consumer Discretionary", industry: "Auto Parts" },
   { symbol: "BC", name: "Brunswick Corporation", sector: "Consumer Discretionary", industry: "Leisure" },
-  { symbol: "NCLH", name: "Norwegian Cruise Line Holdings", sector: "Consumer Discretionary", industry: "Travel Services" },
-  { symbol: "EXPE", name: "Expedia Group", sector: "Consumer Discretionary", industry: "Travel Services" },
+  { symbol: "PLNT", name: "Planet Fitness", sector: "Consumer Discretionary", industry: "Leisure" },
   { symbol: "TRIP", name: "TripAdvisor Inc.", sector: "Consumer Discretionary", industry: "Travel Services" },
   { symbol: "TTGT", name: "TechTarget Inc.", sector: "Consumer Discretionary", industry: "Internet Content" },
   { symbol: "HIMS", name: "Hims & Hers Health", sector: "Consumer Discretionary", industry: "Specialty Retail" },
   { symbol: "WRBY", name: "Warby Parker", sector: "Consumer Discretionary", industry: "Specialty Retail" },
-  { symbol: "MNST", name: "Modine Manufacturing", sector: "Industrials", industry: "Auto Parts" },
+  { symbol: "CABO", name: "Cable One", sector: "Communication Services", industry: "Telecom Services" },
   { symbol: "LEG", name: "Leggett & Platt", sector: "Consumer Discretionary", industry: "Furnishings" },
   { symbol: "WHR", name: "Whirlpool Corporation", sector: "Consumer Discretionary", industry: "Furnishings" },
   { symbol: "MOD", name: "Modine Manufacturing", sector: "Industrials", industry: "Auto Parts" },
@@ -1106,7 +1104,7 @@ export const STOCKS_1000: StockMetadata[] = [
   { symbol: "CNH", name: "CNH Industrial", sector: "Industrials", industry: "Farm & Heavy Construction Machinery" },
   { symbol: "AGCO", name: "AGCO Corporation", sector: "Industrials", industry: "Farm & Heavy Construction Machinery" },
   { symbol: "TRMB", name: "Trimble Inc.", sector: "Industrials", industry: "Electronic Instruments" },
-  { symbol: "BR", name: "Broadridge Financial Solutions", sector: "Industrials", industry: "Specialty Business Services" },
+  { symbol: "VRNT", name: "Verint Systems", sector: "Technology", industry: "Software - Application" },
   { symbol: "WMS", name: "Advanced Drainage Systems", sector: "Industrials", industry: "Building Products" },
   { symbol: "SPXC", name: "SPX Technologies", sector: "Industrials", industry: "Specialty Industrial Machinery" },
   { symbol: "HAYW", name: "Hayward Holdings", sector: "Industrials", industry: "Building Products" },
@@ -1114,13 +1112,13 @@ export const STOCKS_1000: StockMetadata[] = [
   { symbol: "HXL", name: "Hexcel Corporation", sector: "Industrials", industry: "Aerospace & Defense" },
   { symbol: "WWD", name: "Woodward Inc.", sector: "Industrials", industry: "Aerospace & Defense" },
   { symbol: "TDY", name: "Teledyne Technologies", sector: "Industrials", industry: "Aerospace & Defense" },
-  { symbol: "PAYC", name: "Paycom Software", sector: "Industrials", industry: "Staffing & Employment Services" },
+  { symbol: "KAI", name: "Kadant Inc.", sector: "Industrials", industry: "Specialty Industrial Machinery" },
 
   // Communication Services - Additional
   { symbol: "SIRI", name: "Sirius XM Holdings", sector: "Communication Services", industry: "Entertainment" },
   { symbol: "IMAX", name: "IMAX Corporation", sector: "Communication Services", industry: "Entertainment" },
-  { symbol: "SONO", name: "Sonos Inc.", sector: "Communication Services", industry: "Consumer Electronics" },
-  { symbol: "CARG", name: "CarGurus", sector: "Communication Services", industry: "Internet Content & Information" },
+  { symbol: "ZETA", name: "Zeta Global Holdings", sector: "Communication Services", industry: "Advertising Agencies" },
+  { symbol: "CRTO", name: "Criteo S.A.", sector: "Communication Services", industry: "Advertising Agencies" },
   { symbol: "ANGI", name: "Angi Inc.", sector: "Communication Services", industry: "Internet Content & Information" },
   { symbol: "TRMK", name: "Trustmark Corporation", sector: "Financials", industry: "Banks - Regional" },
 
@@ -1164,6 +1162,53 @@ export const STOCKS_1000: StockMetadata[] = [
   { symbol: "ELME", name: "Elme Communities", sector: "Real Estate", industry: "REIT - Residential" },
   { symbol: "NXRT", name: "NexPoint Residential Trust", sector: "Real Estate", industry: "REIT - Residential" },
   { symbol: "AIV", name: "Apartment Investment and Management", sector: "Real Estate", industry: "REIT - Residential" },
+
+  // ============================================================
+  // FINAL ADDITIONS (~35 stocks)
+  // ============================================================
+
+  // Technology - Additional well-known
+  { symbol: "RAMP", name: "LiveRamp Holdings", sector: "Technology", industry: "Software - Infrastructure" },
+  { symbol: "INTA", name: "Intapp Inc.", sector: "Technology", industry: "Software - Application" },
+  { symbol: "CSGP", name: "CoStar Group", sector: "Technology", industry: "Software - Application" },
+  { symbol: "EXPO", name: "Exponent Inc.", sector: "Industrials", industry: "Consulting Services" },
+  { symbol: "EXLS", name: "ExlService Holdings", sector: "Technology", industry: "IT Services" },
+  { symbol: "TNET", name: "TriNet Group", sector: "Technology", industry: "Software - Application" },
+  { symbol: "CIEN", name: "Ciena Corporation", sector: "Technology", industry: "Communication Equipment" },
+  { symbol: "FORM", name: "FormFactor Inc.", sector: "Technology", industry: "Semiconductor Equipment" },
+
+  // Consumer - Additional
+  { symbol: "ODP", name: "ODP Corporation", sector: "Consumer Discretionary", industry: "Specialty Retail" },
+  { symbol: "BOOT", name: "Boot Barn Holdings", sector: "Consumer Discretionary", industry: "Apparel Retail" },
+  { symbol: "PLAY", name: "Dave & Buster's Entertainment", sector: "Consumer Discretionary", industry: "Restaurants" },
+  { symbol: "GAP", name: "Gap Inc.", sector: "Consumer Discretionary", industry: "Apparel Retail" },
+  { symbol: "LKNCY", name: "Luckin Coffee (ADR)", sector: "Consumer Discretionary", industry: "Restaurants" },
+  { symbol: "WEN", name: "Wendy's Company", sector: "Consumer Discretionary", industry: "Restaurants" },
+  { symbol: "JACK", name: "Jack in the Box", sector: "Consumer Discretionary", industry: "Restaurants" },
+  { symbol: "DNUT", name: "Krispy Kreme", sector: "Consumer Discretionary", industry: "Restaurants" },
+
+  // Healthcare - Additional
+  { symbol: "HRMY", name: "Harmony Biosciences", sector: "Healthcare", industry: "Biotechnology" },
+  { symbol: "AMED", name: "Amedisys Inc.", sector: "Healthcare", industry: "Health Care Providers" },
+  { symbol: "ACHC", name: "Acadia Healthcare", sector: "Healthcare", industry: "Health Care Providers" },
+  { symbol: "SGRY", name: "Surgery Partners", sector: "Healthcare", industry: "Health Care Providers" },
+
+  // Financials - Additional
+  { symbol: "CBSH", name: "Commerce Bancshares", sector: "Financials", industry: "Banks - Regional" },
+  { symbol: "TCBI", name: "Texas Capital Bancshares", sector: "Financials", industry: "Banks - Regional" },
+  { symbol: "WTFC", name: "Wintrust Financial", sector: "Financials", industry: "Banks - Regional" },
+  { symbol: "FNF", name: "Fidelity National Financial", sector: "Financials", industry: "Insurance - Specialty" },
+  { symbol: "FAF", name: "First American Financial", sector: "Financials", industry: "Insurance - Specialty" },
+  { symbol: "STC", name: "Stewart Information Services", sector: "Financials", industry: "Insurance - Specialty" },
+  { symbol: "ESNT", name: "Essent Group", sector: "Financials", industry: "Insurance - Specialty" },
+
+  // Industrials - Additional
+  { symbol: "ACM", name: "AECOM", sector: "Industrials", industry: "Engineering & Construction" },
+  { symbol: "KNX", name: "Knight-Swift Transportation", sector: "Industrials", industry: "Trucking" },
+  { symbol: "SNDR", name: "Schneider National", sector: "Industrials", industry: "Trucking" },
+  { symbol: "MATX", name: "Matson Inc.", sector: "Industrials", industry: "Marine Shipping" },
+  { symbol: "ZIM", name: "ZIM Integrated Shipping", sector: "Industrials", industry: "Marine Shipping" },
+  { symbol: "KEX", name: "Kirby Corporation", sector: "Industrials", industry: "Marine Shipping" },
 ]
 
 // Quick lookup map

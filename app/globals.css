@@ -8,95 +8,45 @@
   --spreads-green-dark: #0f1f17;
   --spreads-tan: #bba998;
   --spreads-tan-light: #d4c8bc;
-  --white: #ffffff;
-  --off-white: #f7f8f9;
-  --text-dark: #193427;
 
-  /* Semantic colors */
-  --bg-primary: #f7f8f9;
+  /* Light mode — clean white */
+  --bg-primary: #eef0f3;
+  --bg-primary-rgb: 238, 240, 243;
   --bg-secondary: #ffffff;
-  --bg-tertiary: #f3f4f6;
-  --text-primary: #193427;
-  --text-secondary: #4b5563;
-  --text-muted: #9ca3af;
-  --border-color: #e5e7eb;
+  --bg-tertiary: #f5f6f8;
+  --text-primary: #1a1a1a;
+  --text-secondary: #555555;
+  --text-muted: #999999;
+  --border-color: #e0e2e6;
   --card-bg: #ffffff;
-  --card-border: #f3f4f6;
-  --header-bg: #193427;
+  --card-border: #e8eaed;
+  --accent: #193427;
 }
 
 .dark {
-  --bg-primary: #0f1215;
-  --bg-secondary: #1a1d21;
-  --bg-tertiary: #252830;
-  --text-primary: #f3f4f6;
-  --text-secondary: #d1d5db;
-  --text-muted: #9ca3af;
-  --border-color: #374151;
-  --card-bg: #1a1d21;
-  --card-border: #2a2d31;
-  --header-bg: #1a1d21;
+  /* Dark mode — Spreads brand dark green */
+  --bg-primary: #0b1a12;
+  --bg-primary-rgb: 11, 26, 18;
+  --bg-secondary: #12261a;
+  --bg-tertiary: #1a3326;
+  --text-primary: #e8efe9;
+  --text-secondary: #a3b8aa;
+  --text-muted: #5e7a66;
+  --border-color: #1e3a2b;
+  --card-bg: #12261a;
+  --card-border: #1e3a2b;
   --spreads-green: #22c55e;
   --spreads-green-light: #4ade80;
-  --spreads-tan: #d4c8bc;
-  --off-white: #0f1215;
-  --text-dark: #f3f4f6;
+  --accent: #22c55e;
 }
 
 body {
   font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   background-color: var(--bg-primary);
   color: var(--text-primary);
-  transition: background-color 0.2s ease, color 0.2s ease;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
-
-/* Grid background pattern - DISABLED */
-/*
-.grid-background {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  background-image:
-    linear-gradient(rgba(25, 52, 39, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(25, 52, 39, 0.03) 1px, transparent 1px);
-  background-size: 40px 40px;
-}
-
-.dark .grid-background {
-  background-image:
-    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-}
-*/
-
-/* Animated grid squares effect - DISABLED */
-/*
-.grid-squares {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  overflow: hidden;
-}
-
-.grid-squares::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background-image:
-    radial-gradient(circle at 1px 1px, rgba(25, 52, 39, 0.08) 1px, transparent 0);
-  background-size: 40px 40px;
-  animation: gridPulse 4s ease-in-out infinite;
-}
-
-.dark .grid-squares::before {
-  background-image:
-    radial-gradient(circle at 1px 1px, rgba(34, 197, 94, 0.06) 1px, transparent 0);
-}
-*/
 
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, sans-serif;
@@ -105,8 +55,7 @@ h1, h2, h3, h4, h5, h6 {
 
 @layer components {
   .btn-primary {
-    @apply px-4 py-2 rounded-lg font-medium
-           transition-all duration-200
+    @apply px-4 py-2 rounded-lg font-medium transition-all duration-200
            focus:outline-none focus:ring-2 focus:ring-offset-2;
     background-color: var(--spreads-green);
     color: white;
@@ -118,50 +67,10 @@ h1, h2, h3, h4, h5, h6 {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   }
 
-  .btn-primary:active {
-    transform: translateY(0) scale(0.98);
-  }
-
-  .btn-secondary {
-    @apply px-4 py-2 rounded-lg font-medium border
-           transition-all duration-200
-           focus:outline-none focus:ring-2 focus:ring-offset-2;
-    background-color: var(--card-bg);
-    color: var(--spreads-green);
-    border-color: var(--spreads-green);
-  }
-
-  .btn-secondary:hover {
-    background-color: var(--bg-tertiary);
-    transform: translateY(-1px);
-  }
-
-  .btn-accent {
-    @apply px-4 py-2 rounded-lg font-medium
-           transition-all duration-200
-           focus:outline-none focus:ring-2 focus:ring-offset-2;
-    background-color: var(--spreads-tan);
-    color: var(--text-primary);
-  }
-
-  .btn-accent:hover {
-    background-color: var(--spreads-tan-light);
-    transform: translateY(-1px);
-  }
-
   .card {
     @apply rounded-xl shadow-sm transition-all duration-200;
     background-color: var(--card-bg);
     border: 1px solid var(--card-border);
-  }
-
-  .card-hover:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.1);
-  }
-
-  .dark .card-hover:hover {
-    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.3);
   }
 
   .input-field {
@@ -177,31 +86,6 @@ h1, h2, h3, h4, h5, h6 {
     color: var(--text-muted);
   }
 
-  .select-field {
-    @apply w-full px-4 py-2 rounded-lg cursor-pointer
-           focus:outline-none focus:ring-2 focus:border-transparent
-           transition-all duration-200;
-    background-color: var(--card-bg);
-    border: 1px solid var(--border-color);
-    color: var(--text-primary);
-  }
-
-  .table-header {
-    @apply px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider
-           cursor-pointer transition-colors select-none;
-    color: var(--text-primary);
-    background-color: var(--bg-tertiary);
-  }
-
-  .table-header:hover {
-    background-color: var(--border-color);
-  }
-
-  .table-cell {
-    @apply px-4 py-3 text-sm whitespace-nowrap;
-    color: var(--text-primary);
-  }
-
   .positive {
     @apply text-green-600 dark:text-green-400;
   }
@@ -213,100 +97,27 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Custom scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--bg-tertiary);
-  border-radius: 4px;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--text-muted);
-  border-radius: 4px;
+  background: var(--border-color);
+  border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--text-secondary);
+  background: var(--text-muted);
 }
 
-/* Animation keyframes */
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
-}
-
-@keyframes ripple {
-  0% {
-    transform: scale(0);
-    opacity: 0.5;
-  }
-  100% {
-    transform: scale(4);
-    opacity: 0;
-  }
-}
-
+/* Animations */
 @keyframes shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
-}
-
-@keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-5px); }
-}
-
-/* Animation classes */
-.animate-pulse-slow {
-  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-
-/* Button with ripple effect */
-.btn-animated {
-  position: relative;
-  overflow: hidden;
-  transform: translateZ(0);
-}
-
-.btn-animated .ripple-effect {
-  position: absolute;
-  border-radius: 50%;
-  background-color: rgba(255, 255, 255, 0.4);
-  animation: ripple 0.6s linear;
-  pointer-events: none;
-}
-
-/* Table row animations */
-.table-row-animated {
-  transition: background-color 0.15s ease, transform 0.15s ease;
-}
-
-.table-row-animated:hover {
-  transform: scale(1.002);
-  background-color: var(--bg-tertiary);
-}
-
-/* Loading skeleton shimmer */
-.skeleton {
-  background: linear-gradient(
-    90deg,
-    var(--bg-tertiary) 0%,
-    var(--bg-secondary) 50%,
-    var(--bg-tertiary) 100%
-  );
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
-}
-
-/* Modal animations */
-.modal-overlay {
-  animation: fadeIn 0.2s ease-out;
-}
-
-.modal-content {
-  animation: scaleIn 0.3s ease-out;
 }
 
 @keyframes fadeIn {
@@ -319,420 +130,30 @@ h1, h2, h3, h4, h5, h6 {
   to { opacity: 1; transform: scale(1); }
 }
 
-/* Staggered animations */
-.animate-stagger > * {
-  animation: fadeInUp 0.4s ease-out both;
+.skeleton {
+  background: linear-gradient(90deg, var(--bg-tertiary) 0%, var(--bg-secondary) 50%, var(--bg-tertiary) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
 }
 
-.animate-stagger > *:nth-child(1) { animation-delay: 0ms; }
-.animate-stagger > *:nth-child(2) { animation-delay: 50ms; }
-.animate-stagger > *:nth-child(3) { animation-delay: 100ms; }
-.animate-stagger > *:nth-child(4) { animation-delay: 150ms; }
-.animate-stagger > *:nth-child(5) { animation-delay: 200ms; }
-
-@keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
+.modal-overlay {
+  animation: fadeIn 0.2s ease-out;
 }
 
-@keyframes gridPulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+.modal-content {
+  animation: scaleIn 0.3s ease-out;
 }
 
-/* Sidebar animations */
-@keyframes slideInLeft {
-  from { opacity: 0; transform: translateX(-20px); }
-  to { opacity: 1; transform: translateX(0); }
+/* Scrollbar hide utility */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
 }
 
-@keyframes slideOutLeft {
-  from { opacity: 1; transform: translateX(0); }
-  to { opacity: 0; transform: translateX(-20px); }
-}
-
-@keyframes contentSlide {
-  from { opacity: 0; transform: translateX(20px); }
-  to { opacity: 1; transform: translateX(0); }
-}
-
-/* Sidebar styles */
-.sidebar-tab {
-  @apply relative flex items-center gap-3 px-4 py-3 rounded-lg font-medium
-         transition-all duration-300 cursor-pointer;
-}
-
-.sidebar-tab:hover {
-  @apply bg-white/10;
-  transform: translateX(4px);
-}
-
-.sidebar-tab.active {
-  @apply bg-white text-gray-900;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-.sidebar-tab .tab-indicator {
-  @apply absolute left-0 top-1/2 -translate-y-1/2 w-1 h-0 rounded-r-full
-         transition-all duration-300;
-  background-color: var(--spreads-tan);
-}
-
-.sidebar-tab:hover .tab-indicator,
-.sidebar-tab.active .tab-indicator {
-  @apply h-8;
-}
-
-/* Content slide animation */
-.content-panel {
-  animation: contentSlide 0.3s ease-out;
-}
-
-/* Calendar styles */
-.earnings-day {
-  @apply min-h-[200px] p-3 rounded-lg transition-all duration-200;
-  background-color: var(--card-bg);
-  border: 1px solid var(--card-border);
-}
-
-.earnings-day:hover {
-  border-color: var(--spreads-green);
-}
-
-.earnings-card {
-  @apply p-3 rounded-lg transition-all duration-200 cursor-pointer;
-  background-color: var(--bg-tertiary);
-}
-
-.earnings-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  border-left: 3px solid var(--spreads-green);
-  padding-left: calc(0.75rem - 3px);
-}
-
-.dark .earnings-card:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  border-left-color: #22c55e;
-}
-
-/* Mobile touch feedback for earnings cards */
-@media (hover: none) {
-  .earnings-card:active {
-    transform: scale(0.98);
-    background-color: var(--border-color);
-  }
-}
-
-/* Responsive table container */
-.table-container {
-  @apply overflow-x-auto;
-}
-
-@media (max-width: 768px) {
-  .table-container {
-    margin: 0 -1rem;
-    padding: 0 1rem;
-  }
-}
-
-/* Hero Section Cards */
-.hero-card {
-  @apply rounded-2xl p-6 transition-all duration-300;
-  background-color: var(--card-bg);
-  border: 1px solid var(--card-border);
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
-}
-
-.hero-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
-  border-color: rgba(25, 52, 39, 0.2);
-}
-
-.dark .hero-card:hover {
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
-  border-color: rgba(34, 197, 94, 0.3);
-}
-
-/* Hero Stock Row - Premium clickable rows */
-.hero-stock-row {
-  @apply flex items-center justify-between p-3 -mx-3 rounded-xl cursor-pointer;
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  animation: heroRowFadeIn 0.4s ease-out both;
-}
-
-.hero-stock-row:hover {
-  background-color: var(--bg-tertiary);
-  transform: translateX(4px);
-}
-
-.hero-stock-row:active {
-  transform: translateX(4px) scale(0.99);
-}
-
-@keyframes heroRowFadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* Green glow effects for premium feel */
-.glow-green {
-  box-shadow: 0 0 20px rgba(25, 52, 39, 0.15);
-}
-
-.dark .glow-green {
-  box-shadow: 0 0 20px rgba(34, 197, 94, 0.15);
-}
-
-/* Premium gradient borders */
-.gradient-border {
-  position: relative;
-}
-
-.gradient-border::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  padding: 1px;
-  background: linear-gradient(135deg, var(--spreads-green), transparent 50%);
-  -webkit-mask:
-    linear-gradient(#fff 0 0) content-box,
-    linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.gradient-border:hover::before {
-  opacity: 1;
-}
-
-/* Pulse animation for live indicators */
-@keyframes livePulse {
-  0%, 100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.5;
-    transform: scale(1.1);
-  }
-}
-
-.live-indicator {
-  animation: livePulse 2s ease-in-out infinite;
-}
-
-/* Gamification Points System Animations */
-
-/* Ink blot effect for grid square fills */
-@keyframes inkBlot {
-  0% {
-    opacity: 0;
-    filter: blur(8px);
-    transform: scale(0);
-  }
-  40% {
-    opacity: 0.6;
-    filter: blur(4px);
-  }
-  70% {
-    opacity: 0.9;
-    filter: blur(1px);
-  }
-  100% {
-    opacity: 1;
-    filter: blur(0);
-    transform: scale(1);
-  }
-}
-
-/* Zoom pulse effect - scale from 0 to 1.3 to 1 */
-@keyframes zoomPulse {
-  0% {
-    transform: scale(0);
-    opacity: 0;
-  }
-  50% {
-    transform: scale(1.3);
-    opacity: 0.8;
-  }
-  100% {
-    transform: scale(1);
-    opacity: 1;
-  }
-}
-
-/* Combined animation for grid squares */
-@keyframes gridSquareFill {
-  0% {
-    opacity: 0;
-    filter: blur(8px);
-    transform: scale(0);
-  }
-  40% {
-    opacity: 0.6;
-    filter: blur(4px);
-    transform: scale(1.3);
-  }
-  70% {
-    opacity: 0.9;
-    filter: blur(1px);
-    transform: scale(1.1);
-  }
-  100% {
-    opacity: 1;
-    filter: blur(0);
-    transform: scale(1);
-  }
-}
-
-/* Claim button with hover scale and ripple effect */
-.claim-button {
-  @apply relative overflow-hidden;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  transform-origin: center;
-}
-
-.claim-button:hover {
-  transform: scale(1.05) translateY(-2px);
-  box-shadow: 0 8px 16px rgba(25, 52, 39, 0.3);
-}
-
-.dark .claim-button:hover {
-  box-shadow: 0 8px 16px rgba(34, 197, 94, 0.3);
-}
-
-.claim-button:active {
-  transform: scale(0.98);
-}
-
-/* Ripple effect on click */
-.claim-button::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.5) 0%, transparent 70%);
-  transform: scale(0);
-  opacity: 0;
-  pointer-events: none;
-}
-
-.claim-button:active::after {
-  animation: buttonRipple 0.6s ease-out;
-}
-
-@keyframes buttonRipple {
-  0% {
-    transform: scale(0);
-    opacity: 0.6;
-  }
-  100% {
-    transform: scale(2.5);
-    opacity: 0;
-  }
-}
-
-/* Points grid square animation classes */
-.grid-square-fill {
-  animation: gridSquareFill 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-}
-
-.grid-square-filled {
-  background-color: var(--spreads-green);
-  opacity: 0.3;
-  transition: opacity 0.3s ease;
-}
-
-.grid-square-filled:hover {
-  opacity: 0.5;
-}
-
-/* Premium card shine effect */
-.card-shine {
-  position: relative;
-  overflow: hidden;
-}
-
-.card-shine::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    105deg,
-    transparent 40%,
-    rgba(255, 255, 255, 0.03) 45%,
-    rgba(255, 255, 255, 0.05) 50%,
-    rgba(255, 255, 255, 0.03) 55%,
-    transparent 60%
-  );
-  transform: translateX(-100%);
-  transition: transform 0.6s ease;
-}
-
-.card-shine:hover::after {
-  transform: translateX(100%);
-}
-
-/* Smooth number transitions for price updates */
-.price-update {
-  transition: color 0.3s ease, transform 0.15s ease;
-}
-
-.price-update.flash-green {
-  color: #22c55e;
-  transform: scale(1.02);
-}
-
-.price-update.flash-red {
-  color: #ef4444;
-  transform: scale(1.02);
-}
-
-/* Date input styling for better calendar picker UX */
-input[type="date"] {
-  position: relative;
-  cursor: pointer;
-}
-
-input[type="date"]::-webkit-calendar-picker-indicator {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  width: auto;
-  height: auto;
-  color: transparent;
-  background: transparent;
-  cursor: pointer;
-}
-
-input[type="date"]::-webkit-inner-spin-button,
-input[type="date"]::-webkit-clear-button {
-  z-index: 1;
-}
-
-/* Ensure date input text is visible */
-input[type="date"]::-webkit-datetime-edit {
-  padding: 0;
-}
-
-input[type="date"]::-webkit-datetime-edit-fields-wrapper {
-  padding: 0;
-}
-
-/* Reduce motion for accessibility */
+/* Accessibility */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;

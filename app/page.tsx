@@ -1,415 +1,304 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
-import TopNav from './components/TopNav'
-import StockTable from './components/StockTable'
-import StockFilters from './components/StockFilters'
-import SectorChart from './components/SectorChart'
-import Watchlist from './components/Watchlist'
-import StockModal from './components/StockModal'
-import StockHeroSection from './components/StockHeroSection'
-import PERatioRanking from './components/PERatioRanking'
-import EarningsCalendar from './components/EarningsCalendar'
-import RevenueGrowth from './components/RevenueGrowth'
-import DividendsRanking from './components/DividendsRanking'
-import CompoundInterestCalculator from './components/CompoundInterestCalculator'
-import Portfolio from './components/Portfolio'
-import StockHeatmap from './components/StockHeatmap'
-import { Stock, FilterState, TabType } from '@/lib/types'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import { useRouter } from 'next/navigation'
+import StockLogo from './components/StockLogo'
+import { Stock } from '@/lib/types'
+import { REGIONS, RegionKey } from '@/lib/data/regions'
+import { useTheme } from './context/ThemeContext'
 
-const WATCHLIST_STORAGE_KEY = 'spreads_watchlist'
+type CategoryKey = 'all' | 'tech' | 'healthcare' | 'finance' | 'ai' | 'saas' | 'crypto' | 'energy' | 'consumer' | 'industrial' | 'materials' | 'real-estate' | 'comms' | 'utilities'
 
-interface StockApiResponse {
-  data: Stock[]
-  source: 'api' | 'mock'
-  message: string
+interface CategoryDef {
+  key: CategoryKey
+  label: string
+  filter: (stock: Stock) => boolean
 }
 
-type DatasetType = 'sp500' | 'nasdaq100' | 'international'
+const AI_TICKERS = new Set([
+  'NVDA', 'AMD', 'MSFT', 'GOOGL', 'GOOG', 'META', 'AMZN', 'PLTR', 'ARM', 'SNOW',
+  'CRM', 'NOW', 'SMCI', 'MRVL', 'AVGO', 'INTC', 'IBM', 'ORCL', 'CDNS', 'SNPS',
+  'APP', 'SOUN', 'QBTS', 'RGTI', 'BBAI',
+])
+
+const SAAS_TICKERS = new Set([
+  'CRM', 'NOW', 'ADBE', 'INTU', 'SNOW', 'SHOP', 'WDAY', 'PAYC', 'HUBS', 'ZS',
+  'CRWD', 'NET', 'PANW', 'FTNT', 'DDOG', 'SPOT', 'RDDT',
+])
+
+const CRYPTO_TICKERS = new Set([
+  'COIN', 'MARA', 'RIOT', 'MSTR', 'CIFR', 'WULF', 'IREN', 'OKLO', 'HOOD', 'SOFI',
+])
+
+const CATEGORIES: CategoryDef[] = [
+  { key: 'all', label: 'All', filter: () => true },
+  { key: 'tech', label: 'Tech', filter: (s) => s.sector === 'Technology' },
+  { key: 'healthcare', label: 'Healthcare', filter: (s) => s.sector === 'Healthcare' },
+  { key: 'finance', label: 'Finance', filter: (s) => s.sector === 'Financials' },
+  { key: 'ai', label: 'AI', filter: (s) => AI_TICKERS.has(s.symbol) },
+  { key: 'saas', label: 'SaaS', filter: (s) => SAAS_TICKERS.has(s.symbol) },
+  { key: 'crypto', label: 'Crypto', filter: (s) => CRYPTO_TICKERS.has(s.symbol) },
+  { key: 'energy', label: 'Energy', filter: (s) => s.sector === 'Energy' },
+  { key: 'consumer', label: 'Consumer', filter: (s) => s.sector === 'Consumer Discretionary' || s.sector === 'Consumer Staples' },
+  { key: 'industrial', label: 'Industrial', filter: (s) => s.sector === 'Industrials' },
+  { key: 'materials', label: 'Materials', filter: (s) => s.sector === 'Materials' },
+  { key: 'real-estate', label: 'Real Estate', filter: (s) => s.sector === 'Real Estate' },
+  { key: 'comms', label: 'Comms', filter: (s) => s.sector === 'Communication Services' },
+  { key: 'utilities', label: 'Utilities', filter: (s) => s.sector === 'Utilities' },
+]
+
+const DISPLAY_LIMIT = 100
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<TabType>('dashboard')
-  const [activeDataset, setActiveDataset] = useState<DatasetType>('nasdaq100')
+  const router = useRouter()
+  const { theme, toggleTheme } = useTheme()
   const [stocks, setStocks] = useState<Stock[]>([])
-  const [allDatasets, setAllDatasets] = useState<Record<DatasetType, Stock[]>>({
-    sp500: [],
-    nasdaq100: [],
-    international: []
-  })
   const [loading, setLoading] = useState(true)
-  const [dataSource, setDataSource] = useState<'api' | 'mock' | 'cache'>('mock')
-  const [cacheHoursRemaining, setCacheHoursRemaining] = useState<number | null>(null)
-  const [watchlist, setWatchlist] = useState<string[]>([])
-  const [selectedStock, setSelectedStock] = useState<Stock | null>(null)
-  const [filters, setFilters] = useState<FilterState>({
-    search: '',
-    sector: '',
-    marketCapMin: null,
-    marketCapMax: null,
-    peMin: null,
-    peMax: null,
-    hasDividend: null,
-  })
+  const [search, setSearch] = useState('')
+  const [activeCategory, setActiveCategory] = useState<CategoryKey>('all')
+  const [activeRegion, setActiveRegion] = useState<RegionKey>('all')
+  const searchRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    const loadAllDatasets = async () => {
-      setLoading(true)
+    fetch('/api/stocks')
+      .then((r) => r.json())
+      .then((data) => setStocks(data.data || []))
+      .catch(() => setStocks([]))
+      .finally(() => setLoading(false))
+  }, [])
 
-      const fetchDataset = async (url: string) => {
-        try {
-          const res = await fetch(url)
-          const data = await res.json()
-          return data
-        } catch {
-          return { data: [], source: 'mock' }
-        }
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === '/' && document.activeElement !== searchRef.current) {
+        e.preventDefault()
+        searchRef.current?.focus()
       }
-
-      const datasetUrl: Record<DatasetType, string> = {
-        nasdaq100: '/api/nasdaq100',
-        sp500: '/api/stocks',
-        international: '/api/international',
+      if (e.key === 'Escape') {
+        setSearch('')
+        searchRef.current?.blur()
       }
-
-      const activeData = await fetchDataset(datasetUrl[activeDataset])
-      const activeStocks = activeData.data || []
-
-      setAllDatasets(prev => ({ ...prev, [activeDataset]: activeStocks }))
-      setStocks(activeStocks)
-      setDataSource(activeData.source === 'mock' ? 'mock' : 'api')
-      setCacheHoursRemaining(5)
-      setLoading(false)
-
-      const remaining = (Object.keys(datasetUrl) as DatasetType[]).filter(d => d !== activeDataset)
-      Promise.all(remaining.map(async (dataset) => {
-        const data = await fetchDataset(datasetUrl[dataset])
-        setAllDatasets(prev => ({ ...prev, [dataset]: data.data || [] }))
-      }))
     }
-
-    loadAllDatasets()
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
   }, [])
 
-  useEffect(() => {
-    setStocks(allDatasets[activeDataset])
-  }, [activeDataset, allDatasets])
+  const regionDef = REGIONS.find((r) => r.key === activeRegion)
+  const categoryFilter = CATEGORIES.find((c) => c.key === activeCategory)?.filter ?? (() => true)
 
-  const [refreshing, setRefreshing] = useState(false)
-
-  const handleRefreshData = useCallback(async () => {
-    setRefreshing(true)
-
-    try {
-      // Hit the refresh endpoint — fetches from Yahoo Finance and caches for 24h
-      const refreshRes = await fetch('/api/refresh')
-      const refreshData = await refreshRes.json()
-      console.log(`[Refresh] ${refreshData.stockCount} stocks fetched in ${refreshData.elapsed}`)
-
-      // Now reload from cache
-      const [sp500Response, nasdaq100Response, internationalResponse] = await Promise.all([
-        fetch('/api/stocks'),
-        fetch('/api/nasdaq100'),
-        fetch('/api/international')
-      ])
-
-      const sp500Data = await sp500Response.json()
-      const nasdaq100Data = await nasdaq100Response.json()
-      const internationalData = await internationalResponse.json()
-
-      setAllDatasets({
-        sp500: sp500Data.data || [],
-        nasdaq100: nasdaq100Data.data || [],
-        international: internationalData.data || []
-      })
-
-      setStocks(sp500Data.data || [])
-      setDataSource('api')
-      setCacheHoursRemaining(24)
-    } catch (error) {
-      console.error('Failed to refresh stocks:', error)
-    } finally {
-      setRefreshing(false)
+  const displayStocks = useMemo(() => {
+    let filtered = stocks
+    if (activeRegion !== 'all' && regionDef) {
+      filtered = filtered.filter((s) => regionDef.countries.includes(s.country))
     }
-  }, [])
-
-  useEffect(() => {
-    const savedWatchlist = localStorage.getItem(WATCHLIST_STORAGE_KEY)
-    if (savedWatchlist) {
-      setWatchlist(JSON.parse(savedWatchlist))
+    if (activeCategory !== 'all') {
+      filtered = filtered.filter(categoryFilter)
     }
-  }, [])
-
-  useEffect(() => {
-    localStorage.setItem(WATCHLIST_STORAGE_KEY, JSON.stringify(watchlist))
-  }, [watchlist])
-
-  const handleToggleWatchlist = useCallback((symbol: string) => {
-    setWatchlist((prev) =>
-      prev.includes(symbol) ? prev.filter((s) => s !== symbol) : [...prev, symbol]
-    )
-  }, [])
-
-  const handleSectorClick = useCallback((sector: string) => {
-    setFilters((prev) => ({ ...prev, sector }))
-  }, [])
-
-  const handleSelectStock = useCallback((stock: Stock) => {
-    setSelectedStock(stock)
-  }, [])
-
-  const handleCloseModal = useCallback(() => {
-    setSelectedStock(null)
-  }, [])
-
-  const renderContent = () => {
-    if (loading) {
-      return (
-        <div className="animate-pulse space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="h-28 rounded-xl skeleton" />
-            <div className="h-28 rounded-xl skeleton" />
-            <div className="h-28 rounded-xl skeleton" />
-          </div>
-          <div className="h-96 rounded-xl skeleton" />
-        </div>
+    if (search.trim()) {
+      const q = search.trim().toLowerCase()
+      filtered = filtered.filter(
+        (s) => s.symbol.toLowerCase().includes(q) || s.name.toLowerCase().includes(q)
       )
     }
+    return filtered.slice(0, search.trim() ? 200 : DISPLAY_LIMIT)
+  }, [stocks, activeRegion, activeCategory, search, regionDef, categoryFilter])
 
-    switch (activeTab) {
-      case 'dashboard':
-        return (
-          <div key="dashboard" className="space-y-6">
-            <StockHeroSection stocks={stocks} />
-
-            <div>
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <div>
-                  <h2 className="text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>
-                    {activeDataset === 'sp500' && 'S&P 500'}
-                    {activeDataset === 'nasdaq100' && 'NASDAQ-100'}
-                    {activeDataset === 'international' && 'International'}
-                  </h2>
-                  <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-                    {stocks.length} stocks with price, P/E, EPS, and dividend data
-                  </p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium"
-                    style={{
-                      backgroundColor: dataSource === 'api' ? 'rgba(34, 197, 94, 0.1)' :
-                        dataSource === 'cache' ? 'rgba(59, 130, 246, 0.1)' : 'rgba(234, 179, 8, 0.1)',
-                      color: dataSource === 'api' ? 'rgb(34, 197, 94)' :
-                        dataSource === 'cache' ? 'rgb(59, 130, 246)' : 'rgb(234, 179, 8)',
-                    }}>
-                    <span className="w-1.5 h-1.5 rounded-full"
-                      style={{
-                        backgroundColor: dataSource === 'api' ? 'rgb(34, 197, 94)' :
-                          dataSource === 'cache' ? 'rgb(59, 130, 246)' : 'rgb(234, 179, 8)',
-                      }} />
-                    {dataSource === 'api' ? 'Live' : dataSource === 'cache' ? 'Cached' : 'Demo'}
-                  </div>
-                  <button
-                    onClick={handleRefreshData}
-                    disabled={refreshing}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
-                    style={{ color: 'var(--text-secondary)', border: '1px solid var(--border-color)' }}
-                    title="Fetch fresh prices from Yahoo Finance">
-                    <svg className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                    </svg>
-                    {refreshing ? 'Refreshing...' : 'Refresh'}
-                  </button>
-                </div>
-              </div>
-
-              {/* Dataset Selector */}
-              <div className="mt-3 flex gap-1.5">
-                {[
-                  { key: 'sp500' as DatasetType, label: 'S&P 500' },
-                  { key: 'nasdaq100' as DatasetType, label: 'NASDAQ-100' },
-                  { key: 'international' as DatasetType, label: 'International' },
-                ].map(({ key, label }) => (
-                  <button
-                    key={key}
-                    onClick={() => setActiveDataset(key)}
-                    className="px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-150"
-                    style={{
-                      backgroundColor: activeDataset === key ? 'var(--spreads-green)' : 'var(--bg-tertiary)',
-                      color: activeDataset === key ? 'white' : 'var(--text-secondary)',
-                      border: `1px solid ${activeDataset === key ? 'var(--spreads-green)' : 'var(--border-color)'}`,
-                    }}
-                  >
-                    {label}
-                    <span className="ml-1.5 text-xs opacity-70">({allDatasets[key].length})</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <StockFilters filters={filters} onFilterChange={setFilters} />
-
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-              <div className="lg:col-span-3">
-                <StockTable
-                  stocks={stocks}
-                  filters={filters}
-                  watchlist={watchlist}
-                  compareList={[]}
-                  onToggleWatchlist={handleToggleWatchlist}
-                  onToggleCompare={() => {}}
-                />
-              </div>
-              <div className="lg:col-span-1">
-                <SectorChart
-                  stocks={stocks}
-                  onSectorClick={handleSectorClick}
-                  selectedSector={filters.sector}
-                />
-              </div>
-            </div>
-          </div>
-        )
-
-      case 'pe-ratio':
-        return (
-          <PERatioRanking
-            key="pe-ratio"
-            stocks={stocks}
-            onSelectStock={handleSelectStock}
-            onToggleWatchlist={handleToggleWatchlist}
-            watchlist={watchlist}
-          />
-        )
-
-      case 'earnings':
-        return <EarningsCalendar key="earnings" />
-
-      case 'portfolio':
-        return (
-          <Portfolio
-            key="portfolio"
-            stocks={stocks}
-            onSelectStock={handleSelectStock}
-          />
-        )
-
-      case 'revenue-growth':
-        return (
-          <RevenueGrowth
-            key="revenue-growth"
-            stocks={stocks}
-            onSelectStock={handleSelectStock}
-            onToggleWatchlist={handleToggleWatchlist}
-            watchlist={watchlist}
-          />
-        )
-
-      case 'dividends':
-        return (
-          <DividendsRanking
-            key="dividends"
-            stocks={stocks}
-            onSelectStock={handleSelectStock}
-            onToggleWatchlist={handleToggleWatchlist}
-            watchlist={watchlist}
-          />
-        )
-
-      case 'watchlist':
-        return (
-          <div key="watchlist" className="space-y-6">
-            <div>
-              <h2 className="text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>Watchlist</h2>
-              <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Track your favorite stocks</p>
-            </div>
-            <Watchlist
-              stocks={stocks}
-              watchlist={watchlist}
-              onRemove={handleToggleWatchlist}
-              onSelectStock={handleSelectStock}
-              onToggleCompare={() => {}}
-              compareList={[]}
-            />
-          </div>
-        )
-
-      case 'compound-interest':
-        return <CompoundInterestCalculator key="compound-interest" />
-
-      case 'heatmap':
-        return (
-          <div key="heatmap" className="space-y-6">
-            <div className="flex gap-1.5">
-              {[
-                { key: 'sp500' as DatasetType, label: 'S&P 500' },
-                { key: 'nasdaq100' as DatasetType, label: 'NASDAQ-100' },
-                { key: 'international' as DatasetType, label: 'International' },
-              ].map(({ key, label }) => (
-                <button
-                  key={key}
-                  onClick={() => setActiveDataset(key)}
-                  className="px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-150"
-                  style={{
-                    backgroundColor: activeDataset === key ? 'var(--spreads-green)' : 'var(--bg-tertiary)',
-                    color: activeDataset === key ? 'white' : 'var(--text-secondary)',
-                    border: `1px solid ${activeDataset === key ? 'var(--spreads-green)' : 'var(--border-color)'}`,
-                  }}
-                >
-                  {label} ({allDatasets[key].length})
-                </button>
-              ))}
-            </div>
-            <StockHeatmap
-              stocks={stocks}
-              onSelectStock={handleSelectStock}
-              datasetName={
-                activeDataset === 'sp500' ? 'S&P 500' :
-                activeDataset === 'nasdaq100' ? 'NASDAQ-100' :
-                'International Markets'
-              }
-            />
-          </div>
-        )
-
-      default:
-        return null
-    }
-  }
+  const handleStockClick = useCallback(
+    (symbol: string) => router.push(`/stock/${symbol}`),
+    [router]
+  )
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: 'var(--bg-primary)' }}>
-      <TopNav
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-        watchlistCount={watchlist.length}
-      />
-
-      <main className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {renderContent()}
-      </main>
-
-      <footer className="mt-12 border-t" style={{ borderColor: 'var(--border-color)' }}>
-        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <div className="w-5 h-5 rounded flex items-center justify-center text-white text-[10px] font-bold"
-                style={{ backgroundColor: 'var(--spreads-green)' }}>S</div>
-              <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Spreads</span>
+    <div className="min-h-screen flex flex-col" style={{ backgroundColor: 'var(--bg-primary)' }}>
+      {/* Header */}
+      <header
+        className="sticky top-0 z-50 backdrop-blur-xl"
+        style={{
+          backgroundColor: 'rgba(var(--bg-primary-rgb), 0.92)',
+          borderBottom: '1px solid var(--border-color)',
+        }}
+      >
+        <div className="max-w-[1200px] mx-auto px-5 sm:px-8 py-3.5">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2.5 shrink-0">
+              <div
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold"
+                style={{ backgroundColor: 'var(--accent, var(--spreads-green))' }}
+              >
+                S
+              </div>
+              <span
+                className="text-base font-semibold tracking-tight hidden sm:block"
+                style={{ color: 'var(--accent, var(--spreads-green))' }}
+              >
+                Spreads
+              </span>
             </div>
-            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-              Data provided by Finnhub
-            </p>
+
+            <div className="flex-1 max-w-sm relative">
+              <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--text-muted)' }}>
+                  <circle cx="11" cy="11" r="8" />
+                  <path d="m21 21-4.3-4.3" />
+                </svg>
+              </div>
+              <input
+                ref={searchRef}
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search stocks..."
+                className="w-full pl-9 pr-9 py-2 rounded-lg text-sm outline-none"
+                style={{
+                  backgroundColor: 'var(--bg-tertiary)',
+                  color: 'var(--text-primary)',
+                  border: '1px solid var(--border-color)',
+                }}
+              />
+              {search ? (
+                <button onClick={() => setSearch('')} className="absolute inset-y-0 right-3 flex items-center" style={{ color: 'var(--text-muted)' }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 6 6 18M6 6l12 12" /></svg>
+                </button>
+              ) : (
+                <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none">
+                  <kbd className="text-[10px] px-1.5 py-0.5 rounded font-mono" style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-muted)', border: '1px solid var(--border-color)' }}>/</kbd>
+                </div>
+              )}
+            </div>
+
+            <span className="text-xs hidden sm:block" style={{ color: 'var(--text-muted)' }}>
+              {displayStocks.length} stocks
+            </span>
+
+            <button
+              onClick={toggleTheme}
+              className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors"
+              style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)', border: '1px solid var(--border-color)' }}
+              title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
+            >
+              {theme === 'dark' ? (
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" /></svg>
+              ) : (
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" /></svg>
+              )}
+            </button>
           </div>
         </div>
-      </footer>
+      </header>
 
-      <StockModal
-        stock={selectedStock}
-        isOpen={selectedStock !== null}
-        onClose={handleCloseModal}
-        isInWatchlist={selectedStock ? watchlist.includes(selectedStock.symbol) : false}
-        onToggleWatchlist={() => selectedStock && handleToggleWatchlist(selectedStock.symbol)}
-      />
+      {/* Logo Grid */}
+      <main className="flex-1 max-w-[1200px] w-full mx-auto px-5 sm:px-8 py-10">
+        {loading ? (
+          <div className="flex items-center justify-center py-32">
+            <div className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: 'var(--border-color)', borderTopColor: 'var(--accent, var(--spreads-green))' }} />
+          </div>
+        ) : displayStocks.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-32" style={{ color: 'var(--text-muted)' }}>
+            <p className="text-base font-medium">No stocks found</p>
+            <p className="text-sm mt-1 opacity-60">Try a different search or filter</p>
+          </div>
+        ) : (
+          <div
+            className="grid justify-center gap-6 sm:gap-8"
+            style={{
+              gridTemplateColumns: 'repeat(auto-fill, 72px)',
+            }}
+          >
+            {displayStocks.map((stock, i) => (
+              <button
+                key={stock.symbol}
+                onClick={() => handleStockClick(stock.symbol)}
+                className="group flex flex-col items-center gap-2 outline-none"
+                style={{
+                  animation: `fadeUp 0.4s ease-out ${i * 12}ms both`,
+                }}
+              >
+                <div className="transition-transform duration-300 ease-out group-hover:scale-110 group-hover:-translate-y-1">
+                  <StockLogo
+                    symbol={stock.symbol}
+                    logo={stock.logo}
+                    size="xl"
+                    className="shadow-md group-hover:shadow-xl transition-shadow duration-300"
+                  />
+                </div>
+                <span
+                  className="text-[10px] font-medium tracking-wide opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                  style={{ color: 'var(--text-secondary)' }}
+                >
+                  {stock.symbol}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+      </main>
+
+      {/* Filter Bar */}
+      <div
+        className="sticky bottom-0 z-50 backdrop-blur-xl"
+        style={{
+          backgroundColor: 'rgba(var(--bg-primary-rgb), 0.92)',
+          borderTop: '1px solid var(--border-color)',
+        }}
+      >
+        <div className="max-w-[1200px] mx-auto px-5 sm:px-8 py-2.5 space-y-1.5">
+          <div className="flex items-center gap-3">
+            <span className="text-[10px] font-semibold uppercase tracking-widest shrink-0 w-12" style={{ color: 'var(--text-muted)' }}>Market</span>
+            <div className="overflow-x-auto scrollbar-hide">
+              <div className="flex gap-1.5" style={{ minWidth: 'max-content' }}>
+                {REGIONS.map((region) => {
+                  const active = activeRegion === region.key
+                  return (
+                    <button
+                      key={region.key}
+                      onClick={() => setActiveRegion(region.key)}
+                      className="px-2.5 py-1 rounded-full text-[11px] font-medium whitespace-nowrap transition-all duration-150"
+                      style={{
+                        backgroundColor: active ? 'var(--accent, var(--spreads-green))' : 'transparent',
+                        color: active ? '#fff' : 'var(--text-secondary)',
+                        border: `1px solid ${active ? 'var(--accent, var(--spreads-green))' : 'var(--border-color)'}`,
+                      }}
+                    >
+                      {region.label}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-[10px] font-semibold uppercase tracking-widest shrink-0 w-12" style={{ color: 'var(--text-muted)' }}>Sector</span>
+            <div className="overflow-x-auto scrollbar-hide">
+              <div className="flex gap-1.5" style={{ minWidth: 'max-content' }}>
+                {CATEGORIES.map((cat) => {
+                  const active = activeCategory === cat.key
+                  return (
+                    <button
+                      key={cat.key}
+                      onClick={() => setActiveCategory(cat.key)}
+                      className="px-2.5 py-1 rounded-full text-[11px] font-medium whitespace-nowrap transition-all duration-150"
+                      style={{
+                        backgroundColor: active ? 'var(--accent, var(--spreads-green))' : 'transparent',
+                        color: active ? '#fff' : 'var(--text-secondary)',
+                        border: `1px solid ${active ? 'var(--accent, var(--spreads-green))' : 'var(--border-color)'}`,
+                      }}
+                    >
+                      {cat.label}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Inline keyframes */}
+      <style>{`
+        @keyframes fadeUp {
+          from { opacity: 0; transform: translateY(12px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
     </div>
   )
 }

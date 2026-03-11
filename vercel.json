@@ -2,9 +2,16 @@
   "functions": {
     "app/api/refresh/route.ts": {
       "maxDuration": 60
+    },
+    "app/api/cron/refresh-prices/route.ts": {
+      "maxDuration": 60
     }
   },
   "crons": [
+    {
+      "path": "/api/cron/refresh-prices",
+      "schedule": "*/10 * * * *"
+    },
     {
       "path": "/api/cron/refresh-sp500",
       "schedule": "0 14 * * *"

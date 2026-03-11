@@ -31,6 +31,7 @@ function quoteToStock(
     sector: meta?.sector || 'Other',
     industry: meta?.industry || '',
     exchange: 'US',
+    country: 'US',
     volume: q.volume || 0,
     avgVolume: 0,
     dayHigh: q.dayHigh,
