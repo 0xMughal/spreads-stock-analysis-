@@ -3,17 +3,36 @@
 import { useEffect, useState, useRef, useMemo } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import { Stock } from '@/lib/types'
 import { formatCurrency, formatLargeCurrency, formatPercent } from '@/lib/utils'
 import { useTheme } from '@/app/context/ThemeContext'
-import PEHistoricalModal from '@/app/components/PEHistoricalModal'
-import RedditSentimentCard from '@/app/components/RedditSentimentCard'
 import StockLogo from '@/app/components/StockLogo'
-import { getBrandColor } from '@/lib/data/brand-colors'
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis,
-  Tooltip, ResponsiveContainer, TooltipProps
+  Tooltip, ResponsiveContainer, TooltipProps, Cell
 } from 'recharts'
+
+// ─── Spreads Brand Palette ───
+const SPREADS = {
+  bg: '#F0EDE6',
+  bgDark: '#0D1F17',
+  green: '#1B3A2D',
+  greenLight: '#2D5E47',
+  greenMuted: '#5A7A6E',
+  greenDim: '#9BB5AA',
+  accent: '#2ECC71',
+  red: '#E74C3C',
+  redMuted: '#C0392B',
+  cream: '#D4C9A8',
+  grid: '#E0DDD6',
+  gridDark: '#1B3A2D',
+  barActive: '#1B3A2D',
+  barMuted: '#A8BFB5',
+  text: '#1B3A2D',
+  textMuted: '#5A7A6E',
+  textDim: '#9BB5AA',
+}
 
 declare global {
   interface Window {
@@ -65,6 +84,27 @@ interface FundamentalsData {
   quarters: QuarterData[]
 }
 
+// ─── Utility Functions ───
+
+function formatCompact(value: number): string {
+  const abs = Math.abs(value)
+  const sign = value < 0 ? '-' : ''
+  if (abs >= 1e12) return `${sign}$${(abs / 1e12).toFixed(1)}T`
+  if (abs >= 1e9) return `${sign}$${(abs / 1e9).toFixed(1)}B`
+  if (abs >= 1e6) return `${sign}$${(abs / 1e6).toFixed(0)}M`
+  if (abs >= 1e3) return `${sign}$${(abs / 1e3).toFixed(0)}K`
+  return `${sign}$${abs.toFixed(0)}`
+}
+
+function formatQuarterLabel(dateStr: string): string {
+  const d = new Date(dateStr)
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  const yr = d.getUTCFullYear() % 100
+  return `${months[d.getUTCMonth()]} '${yr.toString().padStart(2, '0')}`
+}
+
+// ─── TradingView Widget ───
+
 function TradingViewWidget({ symbol, theme }: { symbol: string; theme: string }) {
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -82,7 +122,7 @@ function TradingViewWidget({ symbol, theme }: { symbol: string; theme: string })
           theme: theme === 'dark' ? 'dark' : 'light',
           style: '1',
           locale: 'en',
-          toolbar_bg: theme === 'dark' ? '#1a1d21' : '#f7f8f9',
+          toolbar_bg: theme === 'dark' ? '#0D1F17' : '#F0EDE6',
           enable_publishing: false,
           allow_symbol_change: true,
           container_id: 'tradingview_widget',
@@ -97,158 +137,300 @@ function TradingViewWidget({ symbol, theme }: { symbol: string; theme: string })
 
     return () => {
       const existingScript = document.querySelector('script[src="https://s3.tradingview.com/tv.js"]')
-      if (existingScript) {
-        existingScript.remove()
-      }
+      if (existingScript) existingScript.remove()
     }
   }, [symbol, theme])
 
   return (
-    <div className="w-full h-full min-h-[500px] lg:min-h-[600px]">
+    <div className="w-full h-full min-h-[400px] lg:min-h-[500px]">
       <div id="tradingview_widget" ref={containerRef} className="w-full h-full" />
     </div>
   )
 }
 
-/**
- * Format large numbers to B/M/K suffix for chart labels
- */
-function formatCompact(value: number): string {
-  const abs = Math.abs(value)
-  if (abs >= 1e12) return `$${(value / 1e12).toFixed(1)}T`
-  if (abs >= 1e9) return `$${(value / 1e9).toFixed(1)}B`
-  if (abs >= 1e6) return `$${(value / 1e6).toFixed(0)}M`
-  if (abs >= 1e3) return `$${(value / 1e3).toFixed(0)}K`
-  return `$${value.toFixed(0)}`
-}
+// ─── Spreads-Styled Chart Tooltip ───
 
-/**
- * Format a date string like "2024-03-31" to "Mar '24" (matching the Spreads card design)
- */
-function formatQuarterLabel(dateStr: string): string {
-  const d = new Date(dateStr)
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-  const yr = d.getUTCFullYear() % 100
-  return `${months[d.getUTCMonth()]} '${yr.toString().padStart(2, '0')}`
-}
-
-interface CustomTooltipPayload {
-  name: string
-  value: number
-  color: string
-}
-
-function FundamentalTooltip({ active, payload, label, valueFormatter }: TooltipProps<number, string> & { valueFormatter: (v: number) => string }) {
+function SpreadsTooltip({ active, payload, label, valueFormatter }: TooltipProps<number, string> & { valueFormatter: (v: number) => string }) {
   if (!active || !payload || payload.length === 0) return null
-  const item = payload[0] as unknown as CustomTooltipPayload
   return (
-    <div className="rounded-lg px-3 py-2 text-sm shadow-lg" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }}>
-      <p style={{ color: 'var(--text-muted)' }}>{label}</p>
-      <p className="font-semibold" style={{ color: item.color || 'var(--text-primary)' }}>
-        {valueFormatter(item.value)}
-      </p>
+    <div
+      className="rounded-lg px-4 py-2.5 shadow-xl"
+      style={{ backgroundColor: SPREADS.green, border: `1px solid ${SPREADS.greenLight}` }}
+    >
+      <p className="text-xs font-medium mb-0.5" style={{ color: SPREADS.greenDim }}>{label}</p>
+      {payload.map((entry, i) => (
+        <p key={i} className="text-sm font-bold" style={{ color: '#fff' }}>
+          {entry.name && entry.name !== 'value' ? `${entry.name}: ` : ''}
+          {valueFormatter((entry.value as number) ?? 0)}
+        </p>
+      ))}
     </div>
   )
 }
 
-interface FundamentalsSummary {
-  ttmRevenue: number | null
-  ttmRevenuePrev: number | null
-  ttmNetIncome: number | null
-  ttmNetIncomePrev: number | null
-  ttmEps: number | null
-  ttmEpsPrev: number | null
-  latestNetMargin: number | null
+// ─── Spreads Chart Card ───
+// Matches the Spreads content bot aesthetic: cream bg, dark green text,
+// company logo + title header, animated bars, watermark
+
+interface SpreadsChartProps {
+  title: string
+  subtitle?: string
+  symbol: string
+  companyName: string
+  logo?: string
+  data: Array<{ quarter: string; value: number }>
+  type?: 'bar' | 'line'
+  color?: string
+  valueFormatter?: (v: number) => string
+  animationDelay?: number
 }
 
-function computeFundamentalsSummary(data: FundamentalsData): FundamentalsSummary {
-  const sorted = [...data.quarters]
-    .filter(q => q.revenue != null)
-    .sort((a, b) => b.date.localeCompare(a.date))
+function SpreadsChart({
+  title, subtitle, symbol, companyName, logo,
+  data, type = 'bar', color,
+  valueFormatter = formatCompact,
+  animationDelay = 0,
+}: SpreadsChartProps) {
+  const barColor = color || SPREADS.barActive
+  const isLastIndex = data.length - 1
 
-  const last4 = sorted.slice(0, 4)
-  const prev4 = sorted.slice(4, 8)
-
-  const sum = (arr: typeof last4, field: 'revenue' | 'netIncome' | 'eps') =>
-    arr.length === 4 && arr.every(q => q[field] != null)
-      ? arr.reduce((s, q) => s + (q[field] as number), 0)
-      : null
-
-  const ttmRevenue = sum(last4, 'revenue')
-  const ttmRevenuePrev = sum(prev4, 'revenue')
-  const ttmNetIncome = sum(last4, 'netIncome')
-  const ttmNetIncomePrev = sum(prev4, 'netIncome')
-  const ttmEps = sum(last4, 'eps')
-  const ttmEpsPrev = sum(prev4, 'eps')
-
-  const latest = last4[0]
-  const latestNetMargin = latest && latest.revenue && latest.netIncome
-    ? (latest.netIncome / latest.revenue) * 100
-    : null
-
-  return { ttmRevenue, ttmRevenuePrev, ttmNetIncome, ttmNetIncomePrev, ttmEps, ttmEpsPrev, latestNetMargin }
-}
-
-function yoyChange(current: number | null, previous: number | null): number | null {
-  if (current == null || previous == null || previous === 0) return null
-  return ((current - previous) / Math.abs(previous)) * 100
-}
-
-function SummaryStatCard({ label, value, yoyPct }: { label: string; value: string; yoyPct: number | null }) {
   return (
-    <div className="card p-4">
-      <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">{label}</p>
-      <p className="text-lg font-bold text-gray-900 dark:text-gray-100">{value}</p>
-      {yoyPct !== null && (
-        <span className={`inline-block mt-1 px-2 py-0.5 rounded text-xs font-medium ${
-          yoyPct >= 0
-            ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-            : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-        }`}>
-          {yoyPct >= 0 ? '+' : ''}{yoyPct.toFixed(1)}% YoY
+    <div
+      className="rounded-2xl overflow-hidden"
+      style={{
+        backgroundColor: SPREADS.bg,
+        animation: `fadeUp 0.5s ease-out ${animationDelay}ms both`,
+      }}
+    >
+      {/* Header */}
+      <div className="px-6 pt-5 pb-2">
+        <div className="flex items-center gap-3 mb-1">
+          <StockLogo symbol={symbol} name={companyName} logo={logo} size="md" />
+          <div>
+            <h3 className="text-xl font-bold" style={{ color: SPREADS.text }}>{title}</h3>
+            <div className="flex items-center gap-2">
+              <span className="text-sm" style={{ color: SPREADS.textMuted }}>{companyName}</span>
+              <span className="text-sm font-bold" style={{ color: SPREADS.accent }}>${symbol}</span>
+            </div>
+          </div>
+        </div>
+        {subtitle && (
+          <p className="text-xs mt-1" style={{ color: SPREADS.textDim }}>{subtitle}</p>
+        )}
+      </div>
+
+      {/* Chart */}
+      <div className="px-3 pb-2">
+        <ResponsiveContainer width="100%" height={280}>
+          {type === 'bar' ? (
+            <BarChart data={data} margin={{ top: 15, right: 50, bottom: 25, left: 10 }}>
+              <XAxis
+                dataKey="quarter"
+                tick={{ fontSize: 11, fill: SPREADS.textMuted, fontWeight: 500 }}
+                axisLine={{ stroke: SPREADS.grid }}
+                tickLine={false}
+                interval="preserveStartEnd"
+                angle={-45}
+                textAnchor="end"
+              />
+              <YAxis
+                orientation="right"
+                tick={{ fontSize: 11, fill: SPREADS.textMuted, fontWeight: 500 }}
+                axisLine={false}
+                tickLine={false}
+                tickFormatter={valueFormatter}
+                width={55}
+              />
+              <Tooltip content={<SpreadsTooltip valueFormatter={valueFormatter} />} cursor={{ fill: 'rgba(27,58,45,0.06)' }} />
+              <Bar
+                dataKey="value"
+                radius={[3, 3, 0, 0]}
+                animationBegin={animationDelay}
+                animationDuration={800}
+                animationEasing="ease-out"
+              >
+                {data.map((_, index) => (
+                  <Cell
+                    key={index}
+                    fill={index === isLastIndex ? barColor : SPREADS.barMuted}
+                    fillOpacity={index === isLastIndex ? 1 : 0.7 + (index / data.length) * 0.3}
+                  />
+                ))}
+              </Bar>
+            </BarChart>
+          ) : (
+            <LineChart data={data} margin={{ top: 15, right: 50, bottom: 25, left: 10 }}>
+              <XAxis
+                dataKey="quarter"
+                tick={{ fontSize: 11, fill: SPREADS.textMuted, fontWeight: 500 }}
+                axisLine={{ stroke: SPREADS.grid }}
+                tickLine={false}
+                interval="preserveStartEnd"
+                angle={-45}
+                textAnchor="end"
+              />
+              <YAxis
+                orientation="right"
+                tick={{ fontSize: 11, fill: SPREADS.textMuted, fontWeight: 500 }}
+                axisLine={false}
+                tickLine={false}
+                tickFormatter={valueFormatter}
+                width={55}
+              />
+              <Tooltip content={<SpreadsTooltip valueFormatter={valueFormatter} />} />
+              <Line
+                type="monotone"
+                dataKey="value"
+                stroke={barColor}
+                strokeWidth={2.5}
+                dot={{ r: 4, fill: barColor, strokeWidth: 0 }}
+                activeDot={{ r: 6, fill: barColor, stroke: '#fff', strokeWidth: 2 }}
+                animationBegin={animationDelay}
+                animationDuration={1000}
+                animationEasing="ease-out"
+              />
+            </LineChart>
+          )}
+        </ResponsiveContainer>
+      </div>
+
+      {/* Watermark */}
+      <div className="flex justify-end items-center gap-1.5 px-5 pb-3">
+        <Image src="/spreads-logo.jpg" alt="" width={14} height={14} className="rounded-sm opacity-40" />
+        <span className="text-[10px] font-semibold tracking-widest uppercase" style={{ color: SPREADS.textDim }}>
+          Spreads
         </span>
-      )}
+      </div>
     </div>
   )
 }
 
-function FundamentalsSection({ data, brandColor }: { data: FundamentalsData; brandColor: string }) {
-  // Only show the last 12 quarters (3 years) for readability
+// ─── Multi-Series Chart (Balance Sheet, Debt vs Cash) ───
+
+interface MultiBarData {
+  quarter: string
+  [key: string]: string | number
+}
+
+function SpreadsMultiChart({
+  title, symbol, companyName, logo,
+  data, series, animationDelay = 0,
+}: {
+  title: string
+  symbol: string
+  companyName: string
+  logo?: string
+  data: MultiBarData[]
+  series: Array<{ key: string; label: string; color: string }>
+  animationDelay?: number
+}) {
+  return (
+    <div
+      className="rounded-2xl overflow-hidden"
+      style={{
+        backgroundColor: SPREADS.bg,
+        animation: `fadeUp 0.5s ease-out ${animationDelay}ms both`,
+      }}
+    >
+      <div className="px-6 pt-5 pb-2">
+        <div className="flex items-center gap-3 mb-1">
+          <StockLogo symbol={symbol} name={companyName} logo={logo} size="md" />
+          <div>
+            <h3 className="text-xl font-bold" style={{ color: SPREADS.text }}>{title}</h3>
+            <div className="flex items-center gap-2">
+              <span className="text-sm" style={{ color: SPREADS.textMuted }}>{companyName}</span>
+              <span className="text-sm font-bold" style={{ color: SPREADS.accent }}>${symbol}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="px-3 pb-2">
+        <ResponsiveContainer width="100%" height={280}>
+          <BarChart data={data} margin={{ top: 15, right: 50, bottom: 25, left: 10 }}>
+            <XAxis
+              dataKey="quarter"
+              tick={{ fontSize: 11, fill: SPREADS.textMuted, fontWeight: 500 }}
+              axisLine={{ stroke: SPREADS.grid }}
+              tickLine={false}
+              interval="preserveStartEnd"
+              angle={-45}
+              textAnchor="end"
+            />
+            <YAxis
+              orientation="right"
+              tick={{ fontSize: 11, fill: SPREADS.textMuted, fontWeight: 500 }}
+              axisLine={false}
+              tickLine={false}
+              tickFormatter={formatCompact}
+              width={55}
+            />
+            <Tooltip content={<SpreadsTooltip valueFormatter={formatCompact} />} cursor={{ fill: 'rgba(27,58,45,0.06)' }} />
+            {series.map((s, i) => (
+              <Bar
+                key={s.key}
+                dataKey={s.key}
+                name={s.label}
+                fill={s.color}
+                radius={[2, 2, 0, 0]}
+                animationBegin={animationDelay + i * 150}
+                animationDuration={800}
+                animationEasing="ease-out"
+              />
+            ))}
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* Legend */}
+      <div className="flex justify-center gap-5 pb-2">
+        {series.map(s => (
+          <span key={s.key} className="flex items-center gap-1.5 text-xs font-medium" style={{ color: SPREADS.textMuted }}>
+            <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ backgroundColor: s.color }} />
+            {s.label}
+          </span>
+        ))}
+      </div>
+
+      <div className="flex justify-end items-center gap-1.5 px-5 pb-3">
+        <Image src="/spreads-logo.jpg" alt="" width={14} height={14} className="rounded-sm opacity-40" />
+        <span className="text-[10px] font-semibold tracking-widest uppercase" style={{ color: SPREADS.textDim }}>
+          Spreads
+        </span>
+      </div>
+    </div>
+  )
+}
+
+// ─── Fundamentals Section ───
+
+function FundamentalsSection({ data, symbol, companyName, logo }: {
+  data: FundamentalsData
+  symbol: string
+  companyName: string
+  logo?: string
+}) {
   const quarters = useMemo(() => {
     const sorted = [...data.quarters].sort((a, b) => a.date.localeCompare(b.date))
-    return sorted.slice(-12)
+    return sorted.slice(-16)
   }, [data.quarters])
 
-  const summary = useMemo(() => computeFundamentalsSummary(data), [data])
-
   const revenueData = useMemo(() =>
-    quarters
-      .filter(q => q.revenue != null)
-      .map(q => ({ quarter: formatQuarterLabel(q.date), value: q.revenue! })),
+    quarters.filter(q => q.revenue != null).map(q => ({ quarter: formatQuarterLabel(q.date), value: q.revenue! })),
     [quarters]
   )
-
   const epsData = useMemo(() =>
-    quarters
-      .filter(q => q.eps != null)
-      .map(q => ({ quarter: formatQuarterLabel(q.date), value: q.eps! })),
+    quarters.filter(q => q.eps != null).map(q => ({ quarter: formatQuarterLabel(q.date), value: q.eps! })),
     [quarters]
   )
-
   const netIncomeData = useMemo(() =>
-    quarters
-      .filter(q => q.netIncome != null)
-      .map(q => ({ quarter: formatQuarterLabel(q.date), value: q.netIncome! })),
+    quarters.filter(q => q.netIncome != null).map(q => ({ quarter: formatQuarterLabel(q.date), value: q.netIncome! })),
     [quarters]
   )
-
   const fcfData = useMemo(() =>
-    quarters
-      .filter(q => q.freeCashFlow != null)
-      .map(q => ({ quarter: formatQuarterLabel(q.date), value: q.freeCashFlow! })),
+    quarters.filter(q => q.freeCashFlow != null).map(q => ({ quarter: formatQuarterLabel(q.date), value: q.freeCashFlow! })),
     [quarters]
   )
-
   const balanceSheetData = useMemo(() =>
     quarters
       .filter(q => q.totalAssets != null || q.totalLiabilities != null)
@@ -260,7 +442,6 @@ function FundamentalsSection({ data, brandColor }: { data: FundamentalsData; bra
       })),
     [quarters]
   )
-
   const debtCashData = useMemo(() =>
     quarters
       .filter(q => q.totalDebt != null || q.cashAndEquivalents != null)
@@ -272,344 +453,92 @@ function FundamentalsSection({ data, brandColor }: { data: FundamentalsData; bra
     [quarters]
   )
 
-  if (revenueData.length === 0 && epsData.length === 0 && netIncomeData.length === 0) {
-    return null
-  }
+  if (revenueData.length === 0 && epsData.length === 0) return null
+
+  const logoUrl = `https://static2.finnhub.io/file/publicdatany/finnhubimage/stock_logo/${symbol}.png`
 
   return (
-    <div className="mt-6">
-      <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 font-heading mb-4">
-        Fundamentals
-      </h2>
-
-      {/* Summary Stat Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-        <SummaryStatCard
-          label="TTM Revenue"
-          value={summary.ttmRevenue != null ? formatCompact(summary.ttmRevenue) : 'N/A'}
-          yoyPct={yoyChange(summary.ttmRevenue, summary.ttmRevenuePrev)}
-        />
-        <SummaryStatCard
-          label="TTM Net Income"
-          value={summary.ttmNetIncome != null ? formatCompact(summary.ttmNetIncome) : 'N/A'}
-          yoyPct={yoyChange(summary.ttmNetIncome, summary.ttmNetIncomePrev)}
-        />
-        <SummaryStatCard
-          label="TTM EPS"
-          value={summary.ttmEps != null ? `$${summary.ttmEps.toFixed(2)}` : 'N/A'}
-          yoyPct={yoyChange(summary.ttmEps, summary.ttmEpsPrev)}
-        />
-        <SummaryStatCard
-          label="Net Margin"
-          value={summary.latestNetMargin != null ? `${summary.latestNetMargin.toFixed(1)}%` : 'N/A'}
-          yoyPct={null}
-        />
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Revenue */}
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {revenueData.length > 0 && (
-          <div className="rounded-xl p-5" style={{ backgroundColor: '#f0ede6' }}>
-            <h3 className="text-base font-bold text-gray-900 mb-3 uppercase tracking-wide">
-              Revenue (Quarterly)
-            </h3>
-            <ResponsiveContainer width="100%" height={260}>
-              <BarChart data={revenueData} margin={{ top: 10, right: 10, bottom: 30, left: 10 }}>
-                <XAxis dataKey="quarter" tick={{ fontSize: 11, fill: '#6b7280' }} interval="preserveStartEnd" angle={-45} textAnchor="end" />
-                <YAxis orientation="right" tick={{ fontSize: 11, fill: '#6b7280' }} tickFormatter={formatCompact} width={60} />
-                <Tooltip content={<FundamentalTooltip valueFormatter={formatCompact} />} />
-                <Bar dataKey="value" fill={brandColor} radius={[0, 0, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          <SpreadsChart
+            title="Quarterly Revenue"
+            symbol={symbol}
+            companyName={companyName}
+            logo={logoUrl}
+            data={revenueData}
+            animationDelay={0}
+          />
         )}
-
-        {/* EPS */}
         {epsData.length > 0 && (
-          <div className="rounded-xl p-5" style={{ backgroundColor: '#f0ede6' }}>
-            <h3 className="text-base font-bold text-gray-900 mb-3 uppercase tracking-wide">
-              EPS (Quarterly)
-            </h3>
-            <ResponsiveContainer width="100%" height={260}>
-              <LineChart data={epsData} margin={{ top: 10, right: 10, bottom: 30, left: 10 }}>
-                <XAxis dataKey="quarter" tick={{ fontSize: 11, fill: '#6b7280' }} interval="preserveStartEnd" angle={-45} textAnchor="end" />
-                <YAxis orientation="right" tick={{ fontSize: 11, fill: '#6b7280' }} tickFormatter={(v: number) => `$${v.toFixed(2)}`} width={55} />
-                <Tooltip content={<FundamentalTooltip valueFormatter={(v: number) => `$${v.toFixed(2)}`} />} />
-                <Line type="monotone" dataKey="value" stroke={brandColor} strokeWidth={2} dot={{ r: 3, fill: brandColor }} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
+          <SpreadsChart
+            title="Earnings Per Share"
+            symbol={symbol}
+            companyName={companyName}
+            logo={logoUrl}
+            data={epsData}
+            type="line"
+            color={SPREADS.accent}
+            valueFormatter={(v) => `$${v.toFixed(2)}`}
+            animationDelay={200}
+          />
         )}
-
-        {/* Net Income */}
         {netIncomeData.length > 0 && (
-          <div className="rounded-xl p-5" style={{ backgroundColor: '#f0ede6' }}>
-            <h3 className="text-base font-bold text-gray-900 mb-3 uppercase tracking-wide">
-              Net Income (Quarterly)
-            </h3>
-            <ResponsiveContainer width="100%" height={260}>
-              <BarChart data={netIncomeData} margin={{ top: 10, right: 10, bottom: 30, left: 10 }}>
-                <XAxis dataKey="quarter" tick={{ fontSize: 11, fill: '#6b7280' }} interval="preserveStartEnd" angle={-45} textAnchor="end" />
-                <YAxis orientation="right" tick={{ fontSize: 11, fill: '#6b7280' }} tickFormatter={formatCompact} width={60} />
-                <Tooltip content={<FundamentalTooltip valueFormatter={formatCompact} />} />
-                <Bar dataKey="value" fill={brandColor} radius={[0, 0, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          <SpreadsChart
+            title="Net Income"
+            symbol={symbol}
+            companyName={companyName}
+            logo={logoUrl}
+            data={netIncomeData}
+            animationDelay={400}
+          />
         )}
-
-        {/* Free Cash Flow */}
         {fcfData.length > 0 && (
-          <div className="rounded-xl p-5" style={{ backgroundColor: '#f0ede6' }}>
-            <h3 className="text-base font-bold text-gray-900 mb-3 uppercase tracking-wide">
-              Free Cash Flow (Quarterly)
-            </h3>
-            <ResponsiveContainer width="100%" height={260}>
-              <BarChart data={fcfData} margin={{ top: 10, right: 10, bottom: 30, left: 10 }}>
-                <XAxis dataKey="quarter" tick={{ fontSize: 11, fill: '#6b7280' }} interval="preserveStartEnd" angle={-45} textAnchor="end" />
-                <YAxis orientation="right" tick={{ fontSize: 11, fill: '#6b7280' }} tickFormatter={formatCompact} width={60} />
-                <Tooltip content={<FundamentalTooltip valueFormatter={formatCompact} />} />
-                <Bar dataKey="value" fill={brandColor} radius={[0, 0, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          <SpreadsChart
+            title="Free Cash Flow"
+            symbol={symbol}
+            companyName={companyName}
+            logo={logoUrl}
+            data={fcfData}
+            color={SPREADS.greenLight}
+            animationDelay={600}
+          />
         )}
-
-        {/* Balance Sheet: Assets vs Liabilities vs Equity */}
         {balanceSheetData.length > 0 && (
-          <div className="rounded-xl p-5" style={{ backgroundColor: '#f0ede6' }}>
-            <h3 className="text-base font-bold text-gray-900 mb-3 uppercase tracking-wide">
-              Balance Sheet (Quarterly)
-            </h3>
-            <ResponsiveContainer width="100%" height={260}>
-              <BarChart data={balanceSheetData} margin={{ top: 10, right: 10, bottom: 30, left: 10 }}>
-                <XAxis dataKey="quarter" tick={{ fontSize: 11, fill: '#6b7280' }} interval="preserveStartEnd" angle={-45} textAnchor="end" />
-                <YAxis orientation="right" tick={{ fontSize: 11, fill: '#6b7280' }} tickFormatter={formatCompact} width={60} />
-                <Tooltip content={<BalanceSheetTooltip />} />
-                <Bar dataKey="assets" fill="#3b82f6" name="Assets" radius={[0, 0, 0, 0]} />
-                <Bar dataKey="liabilities" fill="#ef4444" name="Liabilities" radius={[0, 0, 0, 0]} />
-                <Bar dataKey="equity" fill="#10b981" name="Equity" radius={[0, 0, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-            <div className="flex gap-4 mt-2 justify-center">
-              <span className="flex items-center gap-1 text-xs text-gray-600"><span className="w-2.5 h-2.5 rounded-sm bg-blue-500 inline-block" /> Assets</span>
-              <span className="flex items-center gap-1 text-xs text-gray-600"><span className="w-2.5 h-2.5 rounded-sm bg-red-500 inline-block" /> Liabilities</span>
-              <span className="flex items-center gap-1 text-xs text-gray-600"><span className="w-2.5 h-2.5 rounded-sm bg-emerald-500 inline-block" /> Equity</span>
-            </div>
-          </div>
+          <SpreadsMultiChart
+            title="Balance Sheet"
+            symbol={symbol}
+            companyName={companyName}
+            logo={logoUrl}
+            data={balanceSheetData}
+            series={[
+              { key: 'assets', label: 'Assets', color: '#3b82f6' },
+              { key: 'liabilities', label: 'Liabilities', color: SPREADS.red },
+              { key: 'equity', label: 'Equity', color: SPREADS.accent },
+            ]}
+            animationDelay={800}
+          />
         )}
-
-        {/* Debt vs Cash */}
         {debtCashData.length > 0 && (
-          <div className="rounded-xl p-5" style={{ backgroundColor: '#f0ede6' }}>
-            <h3 className="text-base font-bold text-gray-900 mb-3 uppercase tracking-wide">
-              Debt vs Cash (Quarterly)
-            </h3>
-            <ResponsiveContainer width="100%" height={260}>
-              <BarChart data={debtCashData} margin={{ top: 10, right: 10, bottom: 30, left: 10 }}>
-                <XAxis dataKey="quarter" tick={{ fontSize: 11, fill: '#6b7280' }} interval="preserveStartEnd" angle={-45} textAnchor="end" />
-                <YAxis orientation="right" tick={{ fontSize: 11, fill: '#6b7280' }} tickFormatter={formatCompact} width={60} />
-                <Tooltip content={<DebtCashTooltip />} />
-                <Bar dataKey="debt" fill="#ef4444" name="Total Debt" radius={[0, 0, 0, 0]} />
-                <Bar dataKey="cash" fill="#10b981" name="Cash" radius={[0, 0, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-            <div className="flex gap-4 mt-2 justify-center">
-              <span className="flex items-center gap-1 text-xs text-gray-600"><span className="w-2.5 h-2.5 rounded-sm bg-red-500 inline-block" /> Total Debt</span>
-              <span className="flex items-center gap-1 text-xs text-gray-600"><span className="w-2.5 h-2.5 rounded-sm bg-emerald-500 inline-block" /> Cash</span>
-            </div>
-          </div>
+          <SpreadsMultiChart
+            title="Debt vs Cash"
+            symbol={symbol}
+            companyName={companyName}
+            logo={logoUrl}
+            data={debtCashData}
+            series={[
+              { key: 'debt', label: 'Total Debt', color: SPREADS.red },
+              { key: 'cash', label: 'Cash', color: SPREADS.accent },
+            ]}
+            animationDelay={1000}
+          />
         )}
       </div>
     </div>
   )
 }
 
-function BalanceSheetTooltip({ active, payload, label }: TooltipProps<number, string>) {
-  if (!active || !payload) return null
-  return (
-    <div className="bg-white border border-gray-200 rounded-lg px-3 py-2 shadow-lg">
-      <p className="text-xs font-medium text-gray-500 mb-1">{label}</p>
-      {payload.map((entry, i) => (
-        <p key={i} className="text-sm font-semibold" style={{ color: entry.color }}>
-          {entry.name}: {formatCompact(entry.value as number)}
-        </p>
-      ))}
-    </div>
-  )
-}
-
-function DebtCashTooltip({ active, payload, label }: TooltipProps<number, string>) {
-  if (!active || !payload) return null
-  return (
-    <div className="bg-white border border-gray-200 rounded-lg px-3 py-2 shadow-lg">
-      <p className="text-xs font-medium text-gray-500 mb-1">{label}</p>
-      {payload.map((entry, i) => (
-        <p key={i} className="text-sm font-semibold" style={{ color: entry.color }}>
-          {entry.name}: {formatCompact(entry.value as number)}
-        </p>
-      ))}
-    </div>
-  )
-}
-
-function FinancialSummaryCard({ data }: { data: FundamentalsData }) {
-  const sorted = useMemo(() =>
-    [...data.quarters].filter(q => q.revenue != null).sort((a, b) => b.date.localeCompare(a.date)),
-    [data.quarters]
-  )
-
-  if (sorted.length === 0) return null
-
-  const latest = sorted[0]
-  const latestQ = (() => {
-    const d = new Date(latest.date)
-    const m = d.getUTCMonth() + 1
-    const q = m <= 3 ? 1 : m <= 6 ? 2 : m <= 9 ? 3 : 4
-    return { q, year: d.getUTCFullYear() }
-  })()
-
-  // Find same quarter previous year
-  const prevYearQ = sorted.find(q => {
-    const d = new Date(q.date)
-    const m = d.getUTCMonth() + 1
-    const qn = m <= 3 ? 1 : m <= 6 ? 2 : m <= 9 ? 3 : 4
-    return d.getUTCFullYear() === latestQ.year - 1 && qn === latestQ.q
-  })
-
-  const revenueGrowthYoY = latest.revenue != null && prevYearQ?.revenue != null && prevYearQ.revenue !== 0
-    ? ((latest.revenue - prevYearQ.revenue) / Math.abs(prevYearQ.revenue)) * 100
-    : null
-
-  const epsGrowthYoY = latest.eps != null && prevYearQ?.eps != null && prevYearQ.eps !== 0
-    ? ((latest.eps - prevYearQ.eps) / Math.abs(prevYearQ.eps)) * 100
-    : null
-
-  const netMargin = latest.revenue && latest.netIncome
-    ? (latest.netIncome / latest.revenue) * 100
-    : null
-
-  const last4 = sorted.slice(0, 4)
-  const ttmRevenue = last4.length === 4 ? last4.reduce((s, q) => s + (q.revenue || 0), 0) : null
-  const ttmNetIncome = last4.length === 4 ? last4.reduce((s, q) => s + (q.netIncome || 0), 0) : null
-  const ttmEps = last4.length === 4 && last4.every(q => q.eps != null)
-    ? last4.reduce((s, q) => s + (q.eps || 0), 0)
-    : null
-
-  const growthColor = (val: number | null) =>
-    val == null ? '' : val >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
-
-  const formatGrowth = (val: number | null) =>
-    val == null ? 'N/A' : `${val >= 0 ? '+' : ''}${val.toFixed(1)}%`
-
-  return (
-    <div className="card p-5">
-      <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-4 uppercase tracking-wide">
-        Financial Summary
-      </h3>
-      <div className="space-y-4">
-        <div className="flex justify-between items-center">
-          <span className="text-sm text-gray-500 dark:text-gray-400">Latest Revenue</span>
-          <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-            {latest.revenue != null ? formatCompact(latest.revenue) : 'N/A'}
-          </span>
-        </div>
-        <div className="flex justify-between items-center">
-          <span className="text-sm text-gray-500 dark:text-gray-400">Revenue Growth YoY</span>
-          <span className={`text-sm font-medium ${growthColor(revenueGrowthYoY)}`}>
-            {formatGrowth(revenueGrowthYoY)}
-          </span>
-        </div>
-        <div className="flex justify-between items-center">
-          <span className="text-sm text-gray-500 dark:text-gray-400">Latest Net Income</span>
-          <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-            {latest.netIncome != null ? formatCompact(latest.netIncome) : 'N/A'}
-          </span>
-        </div>
-        <div className="flex justify-between items-center">
-          <span className="text-sm text-gray-500 dark:text-gray-400">Net Margin</span>
-          <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-            {netMargin != null ? `${netMargin.toFixed(1)}%` : 'N/A'}
-          </span>
-        </div>
-        <div className="flex justify-between items-center">
-          <span className="text-sm text-gray-500 dark:text-gray-400">Latest EPS</span>
-          <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-            {latest.eps != null ? `$${latest.eps.toFixed(2)}` : 'N/A'}
-          </span>
-        </div>
-        <div className="flex justify-between items-center">
-          <span className="text-sm text-gray-500 dark:text-gray-400">EPS Growth YoY</span>
-          <span className={`text-sm font-medium ${growthColor(epsGrowthYoY)}`}>
-            {formatGrowth(epsGrowthYoY)}
-          </span>
-        </div>
-        <div className="pt-3 border-t border-gray-200 dark:border-gray-700" />
-        <div className="flex justify-between items-center">
-          <span className="text-sm text-gray-500 dark:text-gray-400">TTM Revenue</span>
-          <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-            {ttmRevenue != null ? formatCompact(ttmRevenue) : 'N/A'}
-          </span>
-        </div>
-        <div className="flex justify-between items-center">
-          <span className="text-sm text-gray-500 dark:text-gray-400">TTM Net Income</span>
-          <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-            {ttmNetIncome != null ? formatCompact(ttmNetIncome) : 'N/A'}
-          </span>
-        </div>
-        <div className="flex justify-between items-center">
-          <span className="text-sm text-gray-500 dark:text-gray-400">TTM EPS</span>
-          <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-            {ttmEps != null ? `$${ttmEps.toFixed(2)}` : 'N/A'}
-          </span>
-        </div>
-        <div className="flex justify-between items-center">
-          <span className="text-sm text-gray-500 dark:text-gray-400">Quarters of Data</span>
-          <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-            {data.quarters.length} quarters
-          </span>
-        </div>
-        {/* Balance Sheet Summary */}
-        {(() => {
-          const latestBS = sorted.find(q => q.totalAssets != null)
-          if (!latestBS) return null
-          const debtToEquity = latestBS.totalDebt != null && latestBS.stockholdersEquity != null && latestBS.stockholdersEquity !== 0
-            ? (latestBS.totalDebt / latestBS.stockholdersEquity)
-            : null
-          return (
-            <>
-              <div className="pt-3 border-t border-gray-200 dark:border-gray-700" />
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-500 dark:text-gray-400">Total Assets</span>
-                <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                  {latestBS.totalAssets != null ? formatCompact(latestBS.totalAssets) : 'N/A'}
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-500 dark:text-gray-400">Total Debt</span>
-                <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                  {latestBS.totalDebt != null ? formatCompact(latestBS.totalDebt) : 'N/A'}
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-500 dark:text-gray-400">Cash</span>
-                <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                  {latestBS.cashAndEquivalents != null ? formatCompact(latestBS.cashAndEquivalents) : 'N/A'}
-                </span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-500 dark:text-gray-400">Debt/Equity</span>
-                <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                  {debtToEquity != null ? debtToEquity.toFixed(2) : 'N/A'}
-                </span>
-              </div>
-            </>
-          )
-        })()}
-      </div>
-    </div>
-  )
-}
+// ─── Main Page ───
 
 export default function StockDetailPage() {
   const params = useParams()
@@ -622,10 +551,8 @@ export default function StockDetailPage() {
   const [fundamentals, setFundamentals] = useState<FundamentalsData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [avgPE5Y, setAvgPE5Y] = useState<number | null>(null)
-  const [peModalOpen, setPeModalOpen] = useState(false)
 
-  // Save to recently viewed in localStorage
+  // Save to recently viewed
   useEffect(() => {
     if (!symbol) return
     try {
@@ -634,95 +561,38 @@ export default function StockDetailPage() {
       const recent: string[] = stored ? JSON.parse(stored) : []
       const filtered = recent.filter((s: string) => s !== symbol)
       filtered.unshift(symbol)
-      const trimmed = filtered.slice(0, 10)
-      localStorage.setItem(key, JSON.stringify(trimmed))
-    } catch {
-      // localStorage unavailable
-    }
+      localStorage.setItem(key, JSON.stringify(filtered.slice(0, 10)))
+    } catch { /* */ }
   }, [symbol])
 
-  // Fetch live price data from /api/stocks
+  // Fetch stock price data
   useEffect(() => {
-    const fetchStock = async () => {
-      if (!symbol) return
-
-      setLoading(true)
-      setError(null)
-
-      try {
-        const response = await fetch('/api/stocks')
-        if (!response.ok) {
-          throw new Error('Failed to fetch stocks')
-        }
-        const result = await response.json()
+    if (!symbol) return
+    setLoading(true)
+    setError(null)
+    fetch('/api/stocks')
+      .then(r => r.json())
+      .then(result => {
         const allData = result.data || []
         setAllStocks(allData)
-        const stockData = allData.find((s: Stock) => s.symbol === symbol)
-
-        if (stockData) {
-          setStock(stockData)
-        } else {
-          setError('Stock not found')
-        }
-      } catch (err) {
-        console.error('Error fetching stock:', err)
-        setError('Failed to load stock data')
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchStock()
+        const found = allData.find((s: Stock) => s.symbol === symbol)
+        if (found) setStock(found)
+        else setError('Stock not found')
+      })
+      .catch(() => setError('Failed to load stock data'))
+      .finally(() => setLoading(false))
   }, [symbol])
 
-  // Fetch fundamentals from static JSON
+  // Fetch fundamentals
   useEffect(() => {
-    const fetchFundamentals = async () => {
-      if (!symbol) return
-      try {
-        const res = await fetch(`/data/stocks/${symbol}.json`)
-        if (res.ok) {
-          const data: FundamentalsData = await res.json()
-          setFundamentals(data)
-        }
-      } catch (err) {
-        console.error('Error fetching fundamentals:', err)
-      }
-    }
-
-    fetchFundamentals()
+    if (!symbol) return
+    fetch(`/data/stocks/${symbol}.json`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) setFundamentals(data) })
+      .catch(() => {})
   }, [symbol])
 
-  // Fetch 5Y average P/E
-  useEffect(() => {
-    const fetchAvgPE = async () => {
-      if (!symbol) return
-      try {
-        const response = await fetch(`/api/historical-pe/${symbol}`)
-        if (response.ok) {
-          const data = await response.json()
-          setAvgPE5Y(data.avgPE5Y)
-        }
-      } catch (err) {
-        console.error('Error fetching avg P/E:', err)
-      }
-    }
-    fetchAvgPE()
-  }, [symbol])
-
-  // Compute sector averages (must be before conditional returns to satisfy React hooks rules)
-  const sectorAvg = useMemo(() => {
-    if (!stock || allStocks.length === 0) return { pe: null as number | null, divYield: null as number | null }
-    const sectorStocks = allStocks.filter(s => s.sector === stock.sector)
-    const peValues = sectorStocks.filter(s => s.pe != null && s.pe > 0).map(s => s.pe as number)
-    const divValues = sectorStocks.filter(s => s.dividendYield != null && s.dividendYield > 0).map(s => s.dividendYield as number)
-    return {
-      pe: peValues.length > 0 ? peValues.reduce((a, b) => a + b, 0) / peValues.length : null,
-      divYield: divValues.length > 0 ? divValues.reduce((a, b) => a + b, 0) / divValues.length : null,
-    }
-  }, [stock, allStocks])
-
-  // Compute market cap: use stock.marketCap from Yahoo, fallback to price × shares outstanding from fundamentals
+  // All hooks before conditional returns
   const computedMarketCap = useMemo(() => {
     if (stock?.marketCap && stock.marketCap > 0) return stock.marketCap
     if (!stock || !fundamentals) return 0
@@ -732,46 +602,49 @@ export default function StockDetailPage() {
     return 0
   }, [stock, fundamentals])
 
+  const ttmStats = useMemo(() => {
+    if (!fundamentals) return null
+    const sorted = [...fundamentals.quarters]
+      .filter(q => q.revenue != null)
+      .sort((a, b) => b.date.localeCompare(a.date))
+    const last4 = sorted.slice(0, 4)
+    if (last4.length < 4) return null
+    const ttmRev = last4.reduce((s, q) => s + (q.revenue || 0), 0)
+    const ttmNI = last4.reduce((s, q) => s + (q.netIncome || 0), 0)
+    const ttmEps = last4.every(q => q.eps != null) ? last4.reduce((s, q) => s + (q.eps || 0), 0) : null
+    const margin = ttmRev ? (ttmNI / ttmRev) * 100 : null
+    return { ttmRev, ttmNI, ttmEps, margin }
+  }, [fundamentals])
+
+  const balanceSheet = useMemo(() => {
+    if (!fundamentals) return null
+    const sorted = [...fundamentals.quarters].sort((a, b) => b.date.localeCompare(a.date))
+    return sorted.find(q => q.totalAssets != null) || null
+  }, [fundamentals])
+
   const isPositive = (stock?.changesPercentage ?? 0) >= 0
 
+  // ─── Loading State ───
   if (loading) {
     return (
-      <div className="min-h-screen bg-off-white dark:bg-dark-bg">
-        <div className="max-w-7xl mx-auto px-4 py-8">
-          <div className="animate-pulse">
-            <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-48 mb-4" />
-            <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-64 mb-8" />
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2 h-[500px] bg-gray-200 dark:bg-gray-700 rounded-xl" />
-              <div className="space-y-4">
-                {[1, 2, 3, 4, 5].map((i) => (
-                  <div key={i} className="h-20 bg-gray-200 dark:bg-gray-700 rounded-xl" />
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--bg-primary)' }}>
+        <div className="w-10 h-10 rounded-full border-3 border-t-transparent animate-spin" style={{ borderColor: SPREADS.greenDim, borderTopColor: SPREADS.green }} />
       </div>
     )
   }
 
+  // ─── Error State ───
   if (error || !stock) {
     return (
-      <div className="min-h-screen bg-off-white dark:bg-dark-bg flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--bg-primary)' }}>
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4 font-heading">
+          <h1 className="text-2xl font-bold mb-4" style={{ color: SPREADS.green }}>
             {error || 'Stock Not Found'}
           </h1>
-          <p className="text-gray-600 dark:text-gray-400 mb-6">
-            Unable to find data for symbol: {symbol}
+          <p className="mb-6" style={{ color: SPREADS.textMuted }}>
+            Unable to find data for: {symbol}
           </p>
-          <Link
-            href="/"
-            className="btn-primary inline-flex items-center gap-2"
-          >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
+          <Link href="/" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-white" style={{ backgroundColor: SPREADS.green }}>
             Back to Dashboard
           </Link>
         </div>
@@ -779,299 +652,234 @@ export default function StockDetailPage() {
     )
   }
 
-  return (
-    <div className="min-h-screen bg-off-white dark:bg-dark-bg">
-      <div className="relative z-10 max-w-7xl mx-auto px-4 py-6 sm:py-8">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => router.back()}
-              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-            >
-              <svg className="w-6 h-6 text-gray-600 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-              </svg>
-            </button>
-            <div>
-              <div className="flex items-center gap-3 flex-wrap">
-                <StockLogo
-                  symbol={stock.symbol}
-                  logo={`https://static2.finnhub.io/file/publicdatany/finnhubimage/stock_logo/${stock.symbol}.png`}
-                  size="lg"
-                />
-                <h1 className="text-2xl sm:text-3xl font-bold text-spreads-green dark:text-green-400 font-heading">
-                  {stock.symbol}
-                </h1>
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-spreads-green/10 text-spreads-green dark:bg-green-900/30 dark:text-green-400">
-                  {stock.sector}
-                </span>
-              </div>
-              <p className="text-gray-600 dark:text-gray-400 mt-1">{stock.name}</p>
-            </div>
-          </div>
+  const logoUrl = `https://static2.finnhub.io/file/publicdatany/finnhubimage/stock_logo/${stock.symbol}.png`
 
-          {/* Price Display - Mobile */}
-          <div className="sm:hidden card p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Current Price</p>
-                <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">
-                  {formatCurrency(stock.price)}
-                </p>
-              </div>
-              <div className="text-right">
-                <p className={`text-xl font-bold ${isPositive ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                  {formatPercent(stock.changesPercentage)}
-                </p>
-                <p className={`text-sm ${isPositive ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                  {isPositive ? '+' : ''}{formatCurrency(stock.change)}
-                </p>
-              </div>
-            </div>
-          </div>
+  return (
+    <div className="min-h-screen" style={{ backgroundColor: 'var(--bg-primary)' }}>
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
+
+        {/* ─── Top Nav ─── */}
+        <div className="flex items-center gap-3 mb-6">
+          <button
+            onClick={() => router.back()}
+            className="p-2 rounded-xl transition-colors hover:opacity-70"
+            style={{ color: SPREADS.green }}
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <Link href="/" className="flex items-center gap-2">
+            <Image src="/spreads-logo.jpg" alt="Spreads" width={24} height={24} className="rounded-md" />
+            <span className="text-sm font-semibold" style={{ color: SPREADS.green }}>Spreads</span>
+          </Link>
         </div>
 
-        {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Chart Section */}
-          <div className="lg:col-span-2">
-            <div className="card overflow-hidden">
-              <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 font-heading">
-                  Price Chart
-                </h2>
-                <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-                  <span className="hidden sm:inline">Powered by</span>
-                  <span className="font-medium text-blue-600 dark:text-blue-400">TradingView</span>
-                </div>
-              </div>
-              <div className="h-[400px] sm:h-[500px] lg:h-[600px]">
-                <TradingViewWidget symbol={stock.symbol} theme={theme} />
-              </div>
-            </div>
-
-            {/* Fundamentals Charts */}
-            {fundamentals && <FundamentalsSection data={fundamentals} brandColor={getBrandColor(symbol, stock.sector)} />}
-          </div>
-
-          {/* Info Sidebar */}
-          <div className="space-y-4">
-            {/* Price Card - Desktop */}
-            <div className="hidden sm:block card p-5">
-              <div className="mb-4">
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Current Price</p>
-                <p className="text-4xl font-bold text-gray-900 dark:text-gray-100">
-                  {formatCurrency(stock.price)}
-                </p>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className={`inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium ${
-                  isPositive
-                    ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                    : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                }`}>
-                  {isPositive ? '+' : ''}{formatPercent(stock.changesPercentage)}
-                </span>
-                <span className={`text-sm font-medium ${isPositive ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                  {isPositive ? '+' : ''}{formatCurrency(stock.change)}
-                </span>
-              </div>
-            </div>
-
-            {/* Key Metrics */}
-            <div className="card p-5">
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-4 uppercase tracking-wide">
-                Key Metrics
-              </h3>
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-500 dark:text-gray-400">Market Cap</span>
-                  <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                    {computedMarketCap > 0 ? formatLargeCurrency(computedMarketCap) : 'N/A'}
-                  </span>
-                </div>
-                <button
-                  onClick={() => setPeModalOpen(true)}
-                  className="flex justify-between items-center w-full group hover:bg-gray-50 dark:hover:bg-gray-800/50 -mx-2 px-2 py-1 rounded-lg transition-colors"
-                >
-                  <span className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1">
-                    P/E Ratio
-                    <svg className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                    </svg>
-                  </span>
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                      {stock.pe?.toFixed(2) || 'N/A'}
-                    </span>
-                    {avgPE5Y && (
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-spreads-tan/20 text-spreads-tan font-medium">
-                        5Y Avg: {avgPE5Y.toFixed(1)}
-                      </span>
-                    )}
-                  </div>
-                </button>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-500 dark:text-gray-400">EPS</span>
-                  <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                    {stock.eps ? formatCurrency(stock.eps) : 'N/A'}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-500 dark:text-gray-400">EBITDA</span>
-                  <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                    {stock.ebitda ? formatLargeCurrency(stock.ebitda) : 'N/A'}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-500 dark:text-gray-400">Dividend Yield</span>
-                  <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                    {stock.dividendYield ? `${stock.dividendYield.toFixed(2)}%` : 'N/A'}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Financial Summary from Fundamentals */}
-            {fundamentals && <FinancialSummaryCard data={fundamentals} />}
-
-            {/* Trading Range */}
-            <div className="card p-5">
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-4 uppercase tracking-wide">
-                Trading Range
-              </h3>
-              <div className="space-y-4">
-                {/* Day Range */}
-                <div>
-                  <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mb-2">
-                    <span>Day Range</span>
-                  </div>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="text-gray-600 dark:text-gray-400">{formatCurrency(stock.dayLow)}</span>
-                    <span className="text-gray-600 dark:text-gray-400">{formatCurrency(stock.dayHigh)}</span>
-                  </div>
-                  <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-spreads-green dark:bg-green-500 rounded-full"
-                      style={{
-                        width: `${Math.min(100, Math.max(0, ((stock.price - stock.dayLow) / (stock.dayHigh - stock.dayLow)) * 100))}%`
-                      }}
-                    />
-                  </div>
-                </div>
-
-                {/* 52 Week Range */}
-                <div>
-                  <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mb-2">
-                    <span>52 Week Range</span>
-                  </div>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="text-gray-600 dark:text-gray-400">{formatCurrency(stock.yearLow)}</span>
-                    <span className="text-gray-600 dark:text-gray-400">{formatCurrency(stock.yearHigh)}</span>
-                  </div>
-                  <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-spreads-tan rounded-full"
-                      style={{
-                        width: `${Math.min(100, Math.max(0, ((stock.price - stock.yearLow) / (stock.yearHigh - stock.yearLow)) * 100))}%`
-                      }}
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Reddit Sentiment */}
-            <RedditSentimentCard symbol={symbol} />
-
-            {/* Company Info */}
-            <div className="card p-5">
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-4 uppercase tracking-wide">
-                Company Info
-              </h3>
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-500 dark:text-gray-400">Sector</span>
-                  <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+        {/* ─── Stock Header + Price Widget ─── */}
+        <div
+          className="rounded-2xl p-6 mb-6"
+          style={{
+            backgroundColor: SPREADS.bg,
+            animation: 'fadeUp 0.4s ease-out both',
+          }}
+        >
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            {/* Left: Logo + Name */}
+            <div className="flex items-center gap-4">
+              <StockLogo symbol={stock.symbol} name={stock.name} logo={logoUrl} size="xl" />
+              <div>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <h1 className="text-3xl font-bold" style={{ color: SPREADS.text }}>
+                    {stock.symbol}
+                  </h1>
+                  <span
+                    className="text-xs font-semibold px-2.5 py-1 rounded-full"
+                    style={{ backgroundColor: `${SPREADS.green}15`, color: SPREADS.green }}
+                  >
                     {stock.sector}
                   </span>
                 </div>
-                {stock.industry && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-500 dark:text-gray-400">Industry</span>
-                    <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                      {stock.industry}
-                    </span>
-                  </div>
-                )}
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-500 dark:text-gray-400">Exchange</span>
-                  <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                    {stock.exchange}
+                <p className="text-sm mt-0.5" style={{ color: SPREADS.textMuted }}>{stock.name}</p>
+              </div>
+            </div>
+
+            {/* Right: Price */}
+            <div className="text-right">
+              <p className="text-3xl sm:text-4xl font-bold" style={{ color: SPREADS.text }}>
+                {stock.price > 0 ? formatCurrency(stock.price) : 'N/A'}
+              </p>
+              {stock.price > 0 && (
+                <div className="flex items-center justify-end gap-2 mt-1">
+                  <span
+                    className="text-sm font-bold px-2.5 py-0.5 rounded-lg"
+                    style={{
+                      backgroundColor: isPositive ? `${SPREADS.accent}20` : `${SPREADS.red}20`,
+                      color: isPositive ? SPREADS.accent : SPREADS.red,
+                    }}
+                  >
+                    {isPositive ? '+' : ''}{formatPercent(stock.changesPercentage)}
+                  </span>
+                  <span className="text-sm font-medium" style={{ color: isPositive ? SPREADS.accent : SPREADS.red }}>
+                    {isPositive ? '+' : ''}{formatCurrency(stock.change)}
                   </span>
                 </div>
-              </div>
+              )}
+            </div>
+          </div>
 
-              {/* Sector Performance Comparison */}
-              {(sectorAvg.pe !== null || sectorAvg.divYield !== null) && (
-                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                  <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-3 uppercase tracking-wide">
-                    Sector Performance
-                  </h4>
-                  <div className="space-y-3">
-                    {sectorAvg.pe !== null && (
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-500 dark:text-gray-400">P/E vs Sector</span>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                            {stock.pe?.toFixed(1) || 'N/A'}
-                          </span>
-                          <span className="text-xs px-1.5 py-0.5 rounded" style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-muted)' }}>
-                            vs {sectorAvg.pe.toFixed(1)}
-                          </span>
-                        </div>
-                      </div>
-                    )}
-                    {sectorAvg.divYield !== null && (
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-500 dark:text-gray-400">Div Yield vs Sector</span>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                            {stock.dividendYield ? `${stock.dividendYield.toFixed(2)}%` : 'N/A'}
-                          </span>
-                          <span className="text-xs px-1.5 py-0.5 rounded" style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-muted)' }}>
-                            vs {sectorAvg.divYield.toFixed(2)}%
-                          </span>
-                        </div>
-                      </div>
-                    )}
+          {/* Key Stats Row */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-5 pt-5" style={{ borderTop: `1px solid ${SPREADS.grid}` }}>
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide" style={{ color: SPREADS.textDim }}>Market Cap</p>
+              <p className="text-lg font-bold mt-0.5" style={{ color: SPREADS.text }}>
+                {computedMarketCap > 0 ? formatLargeCurrency(computedMarketCap) : 'N/A'}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide" style={{ color: SPREADS.textDim }}>P/E Ratio</p>
+              <p className="text-lg font-bold mt-0.5" style={{ color: SPREADS.text }}>
+                {stock.pe?.toFixed(1) || 'N/A'}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide" style={{ color: SPREADS.textDim }}>TTM Revenue</p>
+              <p className="text-lg font-bold mt-0.5" style={{ color: SPREADS.text }}>
+                {ttmStats?.ttmRev ? formatCompact(ttmStats.ttmRev) : 'N/A'}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide" style={{ color: SPREADS.textDim }}>Net Margin</p>
+              <p className="text-lg font-bold mt-0.5" style={{ color: SPREADS.text }}>
+                {ttmStats?.margin != null ? `${ttmStats.margin.toFixed(1)}%` : 'N/A'}
+              </p>
+            </div>
+          </div>
+
+          {/* Secondary Stats */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-3">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide" style={{ color: SPREADS.textDim }}>TTM EPS</p>
+              <p className="text-base font-bold mt-0.5" style={{ color: SPREADS.text }}>
+                {ttmStats?.ttmEps != null ? `$${ttmStats.ttmEps.toFixed(2)}` : 'N/A'}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide" style={{ color: SPREADS.textDim }}>Dividend</p>
+              <p className="text-base font-bold mt-0.5" style={{ color: SPREADS.text }}>
+                {stock.dividendYield ? `${stock.dividendYield.toFixed(2)}%` : 'N/A'}
+              </p>
+            </div>
+            {balanceSheet && (
+              <>
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide" style={{ color: SPREADS.textDim }}>Total Debt</p>
+                  <p className="text-base font-bold mt-0.5" style={{ color: SPREADS.text }}>
+                    {balanceSheet.totalDebt != null ? formatCompact(balanceSheet.totalDebt) : 'N/A'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide" style={{ color: SPREADS.textDim }}>Cash</p>
+                  <p className="text-base font-bold mt-0.5" style={{ color: SPREADS.text }}>
+                    {balanceSheet.cashAndEquivalents != null ? formatCompact(balanceSheet.cashAndEquivalents) : 'N/A'}
+                  </p>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* ─── Price Chart ─── */}
+        <div
+          className="rounded-2xl overflow-hidden mb-6"
+          style={{
+            backgroundColor: SPREADS.bg,
+            animation: 'fadeUp 0.4s ease-out 100ms both',
+          }}
+        >
+          <div className="px-6 pt-4 pb-2 flex items-center justify-between">
+            <h2 className="text-lg font-bold" style={{ color: SPREADS.text }}>Price Chart</h2>
+            <span className="text-xs font-medium" style={{ color: SPREADS.textDim }}>TradingView</span>
+          </div>
+          <div className="h-[400px] lg:h-[500px]">
+            <TradingViewWidget symbol={stock.symbol} theme={theme} />
+          </div>
+        </div>
+
+        {/* ─── Trading Range ─── */}
+        {stock.price > 0 && (
+          <div
+            className="rounded-2xl p-6 mb-6"
+            style={{
+              backgroundColor: SPREADS.bg,
+              animation: 'fadeUp 0.4s ease-out 200ms both',
+            }}
+          >
+            <h3 className="text-base font-bold mb-4" style={{ color: SPREADS.text }}>Trading Range</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              {/* Day Range */}
+              {stock.dayHigh > 0 && (
+                <div>
+                  <div className="flex justify-between text-xs mb-2" style={{ color: SPREADS.textMuted }}>
+                    <span>Day Low: {formatCurrency(stock.dayLow)}</span>
+                    <span>Day High: {formatCurrency(stock.dayHigh)}</span>
+                  </div>
+                  <div className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: SPREADS.grid }}>
+                    <div
+                      className="h-full rounded-full transition-all duration-700"
+                      style={{
+                        backgroundColor: SPREADS.green,
+                        width: `${Math.min(100, Math.max(0, ((stock.price - stock.dayLow) / (stock.dayHigh - stock.dayLow)) * 100))}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+              {/* 52-Week Range */}
+              {stock.yearHigh > 0 && (
+                <div>
+                  <div className="flex justify-between text-xs mb-2" style={{ color: SPREADS.textMuted }}>
+                    <span>52W Low: {formatCurrency(stock.yearLow)}</span>
+                    <span>52W High: {formatCurrency(stock.yearHigh)}</span>
+                  </div>
+                  <div className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: SPREADS.grid }}>
+                    <div
+                      className="h-full rounded-full transition-all duration-700"
+                      style={{
+                        backgroundColor: SPREADS.cream,
+                        width: `${Math.min(100, Math.max(0, ((stock.price - stock.yearLow) / (stock.yearHigh - stock.yearLow)) * 100))}%`,
+                      }}
+                    />
                   </div>
                 </div>
               )}
             </div>
-
-            {/* Back to Dashboard Button */}
-            <Link
-              href="/"
-              className="btn-secondary w-full flex items-center justify-center gap-2"
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-              </svg>
-              Back to Dashboard
-            </Link>
           </div>
+        )}
+
+        {/* ─── Fundamentals Charts ─── */}
+        {fundamentals && (
+          <FundamentalsSection
+            data={fundamentals}
+            symbol={stock.symbol}
+            companyName={stock.name}
+            logo={logoUrl}
+          />
+        )}
+
+        {/* ─── Back Button ─── */}
+        <div className="mt-8 mb-4 flex justify-center">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-medium transition-opacity hover:opacity-80"
+            style={{ backgroundColor: SPREADS.green, color: '#fff' }}
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+            Back to Dashboard
+          </Link>
         </div>
       </div>
-
-      {/* P/E Historical Modal */}
-      <PEHistoricalModal
-        isOpen={peModalOpen}
-        onClose={() => setPeModalOpen(false)}
-        symbol={stock.symbol}
-        companyName={stock.name}
-      />
     </div>
   )
 }
