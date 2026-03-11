@@ -13,6 +13,7 @@ import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis,
   Tooltip, ResponsiveContainer, TooltipProps, Cell
 } from 'recharts'
+import html2canvas from 'html2canvas'
 
 // ─── Spreads Brand Palette ───
 const S = {
@@ -89,6 +90,76 @@ function lightenColor(hex: string, factor: number): string {
   const lg = Math.round(g + (255 - g) * factor)
   const lb = Math.round(b + (255 - b) * factor)
   return `#${lr.toString(16).padStart(2, '0')}${lg.toString(16).padStart(2, '0')}${lb.toString(16).padStart(2, '0')}`
+}
+
+// ─── Copy Chart to Clipboard ───
+
+function CopyChartButton({ targetRef }: { targetRef: React.RefObject<HTMLDivElement | null> }) {
+  const [status, setStatus] = useState<'idle' | 'copying' | 'done' | 'error'>('idle')
+
+  const handleCopy = async (e: React.MouseEvent) => {
+    e.stopPropagation() // Don't trigger expand modal
+    if (!targetRef.current || status === 'copying') return
+
+    setStatus('copying')
+    try {
+      const canvas = await html2canvas(targetRef.current, {
+        backgroundColor: S.bg,
+        scale: 3, // High-res capture
+        useCORS: true,
+        logging: false,
+      })
+
+      canvas.toBlob(async (blob) => {
+        if (!blob) { setStatus('error'); return }
+        try {
+          await navigator.clipboard.write([
+            new ClipboardItem({ 'image/png': blob })
+          ])
+          setStatus('done')
+          setTimeout(() => setStatus('idle'), 2000)
+        } catch {
+          // Fallback: download the image
+          const url = URL.createObjectURL(blob)
+          const a = document.createElement('a')
+          a.href = url
+          a.download = 'spreads-chart.png'
+          a.click()
+          URL.revokeObjectURL(url)
+          setStatus('done')
+          setTimeout(() => setStatus('idle'), 2000)
+        }
+      }, 'image/png')
+    } catch {
+      setStatus('error')
+      setTimeout(() => setStatus('idle'), 2000)
+    }
+  }
+
+  return (
+    <button
+      onClick={handleCopy}
+      className="w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95"
+      style={{
+        backgroundColor: status === 'done' ? `${S.accent}20` : `${S.green}10`,
+        color: status === 'done' ? S.accent : S.textMuted,
+      }}
+      title={status === 'done' ? 'Copied!' : 'Copy chart image'}
+    >
+      {status === 'copying' ? (
+        <div className="w-3.5 h-3.5 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: S.textMuted, borderTopColor: 'transparent' }} />
+      ) : status === 'done' ? (
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M20 6L9 17l-5-5" />
+        </svg>
+      ) : (
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+        </svg>
+      )}
+    </button>
+  )
 }
 
 // ─── TradingView Widget ───
@@ -311,20 +382,22 @@ function SpreadsChart({ config, height = 320, expanded = false }: { config: Char
   const { title, symbol, companyName, logo, data, type = 'bar', brandColor, valueFormatter = formatCompact, animationDelay = 0 } = config
   const mutedColor = lightenColor(brandColor, 0.45)
   const lastIdx = data.length - 1
+  const captureRef = useRef<HTMLDivElement>(null)
 
   return (
-    <div className={expanded ? 'p-6' : ''}>
+    <div className={expanded ? 'p-6' : ''} ref={captureRef}>
       {/* Header */}
       <div className="px-6 pt-5 pb-2">
         <div className="flex items-center gap-3 mb-1">
           <StockLogo symbol={symbol} name={companyName} logo={logo} size="md" />
-          <div>
+          <div className="flex-1">
             <h3 className={`font-bold ${expanded ? 'text-2xl' : 'text-lg'}`} style={{ color: S.text }}>{title}</h3>
             <div className="flex items-center gap-2">
               <span className="text-sm" style={{ color: S.textMuted }}>{companyName}</span>
               <span className="text-sm font-bold" style={{ color: brandColor }}>${symbol}</span>
             </div>
           </div>
+          <CopyChartButton targetRef={captureRef} />
         </div>
       </div>
 
@@ -443,19 +516,21 @@ interface MultiChartConfig {
 
 function SpreadsMultiChartInner({ config, height = 320, expanded = false }: { config: MultiChartConfig; height?: number; expanded?: boolean }) {
   const { title, symbol, companyName, logo, data, series, animationDelay = 0 } = config
+  const captureRef = useRef<HTMLDivElement>(null)
 
   return (
-    <div className={expanded ? 'p-6' : ''}>
+    <div className={expanded ? 'p-6' : ''} ref={captureRef}>
       <div className="px-6 pt-5 pb-2">
         <div className="flex items-center gap-3 mb-1">
           <StockLogo symbol={symbol} name={companyName} logo={logo} size="md" />
-          <div>
+          <div className="flex-1">
             <h3 className={`font-bold ${expanded ? 'text-2xl' : 'text-lg'}`} style={{ color: S.text }}>{title}</h3>
             <div className="flex items-center gap-2">
               <span className="text-sm" style={{ color: S.textMuted }}>{companyName}</span>
               <span className="text-sm font-bold" style={{ color: S.green }}>${symbol}</span>
             </div>
           </div>
+          <CopyChartButton targetRef={captureRef} />
         </div>
       </div>
       <ScrollableChartArea dataCount={data.length} height={expanded ? 450 : height}>
