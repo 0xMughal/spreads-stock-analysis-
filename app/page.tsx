@@ -7,6 +7,7 @@ import StockLogo from './components/StockLogo'
 import { Stock } from '@/lib/types'
 import { REGIONS, RegionKey } from '@/lib/data/regions'
 import { INDEXES, IndexKey } from '@/lib/data/indexes'
+import { getTaggedTickers } from '@/lib/data/search-tags'
 import { useTheme } from './context/ThemeContext'
 
 type CategoryKey = 'all' | 'tech' | 'healthcare' | 'finance' | 'ai' | 'saas' | 'crypto' | 'energy' | 'consumer' | 'industrial' | 'materials' | 'real-estate' | 'comms' | 'utilities'
@@ -31,6 +32,34 @@ const SAAS_TICKERS = new Set([
 const CRYPTO_TICKERS = new Set([
   'COIN', 'MARA', 'RIOT', 'MSTR', 'CIFR', 'WULF', 'IREN', 'OKLO', 'HOOD', 'SOFI',
 ])
+
+// Priority tiers for stock ordering — Mag 7 first, then well-known mega/large caps
+const STOCK_PRIORITY: Record<string, number> = {}
+const TIER_1 = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'META', 'TSLA'] // Mag 7
+const TIER_2 = [
+  'BRK-B', 'JPM', 'V', 'JNJ', 'WMT', 'MA', 'PG', 'UNH', 'HD', 'DIS',
+  'BAC', 'XOM', 'NFLX', 'AVGO', 'KO', 'PEP', 'COST', 'TMO', 'ABBV', 'MRK',
+  'LLY', 'ORCL', 'CRM', 'AMD', 'ADBE', 'CSCO', 'ACN', 'INTC', 'QCOM', 'TXN',
+  'IBM', 'NOW', 'PYPL', 'UBER', 'SQ', 'SHOP', 'PLTR', 'COIN', 'ARM', 'SNOW',
+] // Top mega-caps & well-known names
+const TIER_3 = [
+  'GS', 'MS', 'C', 'WFC', 'AXP', 'BLK', 'SCHW', 'CME', 'ICE', 'SPGI',
+  'CVX', 'COP', 'SLB', 'EOG', 'PXD', 'NEE', 'SO', 'DUK', 'AEP',
+  'GOOG', 'BRK-A', 'PM', 'MO', 'NKE', 'SBUX', 'MCD', 'LOW', 'TGT', 'ABNB',
+  'BA', 'CAT', 'GE', 'RTX', 'HON', 'LMT', 'UPS', 'DE', 'MMM',
+  'AMGN', 'GILD', 'BMY', 'PFE', 'ABT', 'MDT', 'SYK', 'ISRG', 'DHR',
+  'T', 'VZ', 'CMCSA', 'TMUS', 'CHTR',
+  'CRWD', 'PANW', 'DDOG', 'NET', 'ZS', 'FTNT', 'MSTR', 'MARA',
+  // Big international names
+  'SHEL', 'AZN', 'HSBA.UK', 'ULVR.UK', 'BP.UK', 'GSK.UK', 'RIO.UK', 'BATS.UK',
+  'ASML', 'MC.EU', 'SAP.EU', 'SIE.EU', 'OR.EU', 'NESN.EU',
+  '7203.JP', '6758.JP', '9984.JP', 'SFTBMB.JP',
+  'TSM', 'BABA', 'TCEHY', 'PDD', 'JD', 'BIDU',
+  'SAMSUNG.KR', '005930.KR',
+] // Large caps & well-known international
+TIER_1.forEach((t, i) => STOCK_PRIORITY[t] = i)
+TIER_2.forEach((t, i) => STOCK_PRIORITY[t] = 100 + i)
+TIER_3.forEach((t, i) => STOCK_PRIORITY[t] = 200 + i)
 
 const CATEGORIES: CategoryDef[] = [
   { key: 'all', label: 'All', filter: () => true },
@@ -109,10 +138,20 @@ export default function Home() {
     }
     if (search.trim()) {
       const q = search.trim().toLowerCase()
+      const taggedTickers = getTaggedTickers(q)
       filtered = filtered.filter(
-        (s) => s.symbol.toLowerCase().includes(q) || s.name.toLowerCase().includes(q)
+        (s) => s.symbol.toLowerCase().includes(q) || s.name.toLowerCase().includes(q) || taggedTickers.has(s.symbol)
       )
     }
+    // Sort by priority tier (Mag 7 first, then mega-caps, then rest)
+    filtered.sort((a, b) => {
+      const pa = STOCK_PRIORITY[a.symbol] ?? 999
+      const pb = STOCK_PRIORITY[b.symbol] ?? 999
+      if (pa !== pb) return pa - pb
+      // Within same tier, sort by market cap descending (if available), else alphabetically
+      if ((b.marketCap || 0) !== (a.marketCap || 0)) return (b.marketCap || 0) - (a.marketCap || 0)
+      return a.symbol.localeCompare(b.symbol)
+    })
     return filtered
   }, [stocks, activeRegion, activeIndex, activeCategory, search, regionDef, categoryFilter])
 

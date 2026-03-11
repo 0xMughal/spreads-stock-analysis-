@@ -187,6 +187,112 @@ function ChartModal({ open, onClose, children }: { open: boolean; onClose: () =>
   )
 }
 
+// ─── Scrollable Chart Wrapper ───
+// Shows ~12-16 bars in view, scrolls horizontally for more. Auto-scrolls to latest data.
+
+const VISIBLE_BARS = 14
+const MIN_BAR_WIDTH = 44 // px per data point
+
+function ScrollableChartArea({ dataCount, height, children }: { dataCount: number; height: number; children: React.ReactNode }) {
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const [canScrollLeft, setCanScrollLeft] = useState(false)
+  const [canScrollRight, setCanScrollRight] = useState(false)
+  const needsScroll = dataCount > VISIBLE_BARS
+  const innerWidth = needsScroll ? dataCount * MIN_BAR_WIDTH + 80 : undefined
+
+  const updateScrollState = useCallback(() => {
+    const el = scrollRef.current
+    if (!el) return
+    setCanScrollLeft(el.scrollLeft > 10)
+    setCanScrollRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 10)
+  }, [])
+
+  useEffect(() => {
+    // Auto-scroll to the right (most recent data)
+    if (scrollRef.current && needsScroll) {
+      scrollRef.current.scrollLeft = scrollRef.current.scrollWidth
+      // Small delay to let layout settle before checking state
+      setTimeout(updateScrollState, 50)
+    }
+  }, [needsScroll, dataCount, updateScrollState])
+
+  const scroll = useCallback((direction: 'left' | 'right') => {
+    const el = scrollRef.current
+    if (!el) return
+    const amount = el.clientWidth * 0.6
+    el.scrollBy({ left: direction === 'left' ? -amount : amount, behavior: 'smooth' })
+  }, [])
+
+  if (!needsScroll) {
+    return (
+      <div className="px-3 pb-2">
+        <ResponsiveContainer width="100%" height={height}>
+          {children as React.ReactElement}
+        </ResponsiveContainer>
+      </div>
+    )
+  }
+
+  return (
+    <div className="relative px-3 pb-2 group/scroll">
+      {/* Left arrow */}
+      {canScrollLeft && (
+        <button
+          onClick={() => scroll('left')}
+          className="absolute left-4 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full flex items-center justify-center shadow-lg transition-all duration-200 hover:scale-110 active:scale-95"
+          style={{ backgroundColor: S.green, color: '#fff' }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M15 18l-6-6 6-6" />
+          </svg>
+        </button>
+      )}
+
+      {/* Scroll hint gradient — left */}
+      {canScrollLeft && (
+        <div
+          className="absolute left-3 top-0 bottom-2 w-12 z-10 pointer-events-none"
+          style={{ background: `linear-gradient(to right, ${S.bg}, transparent)` }}
+        />
+      )}
+
+      <div
+        ref={scrollRef}
+        className="overflow-x-auto scrollbar-hide"
+        style={{ WebkitOverflowScrolling: 'touch' }}
+        onScroll={updateScrollState}
+      >
+        <div style={{ width: innerWidth, height }}>
+          <ResponsiveContainer width="100%" height="100%">
+            {children as React.ReactElement}
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Scroll hint gradient — right */}
+      {canScrollRight && (
+        <div
+          className="absolute right-3 top-0 bottom-2 w-12 z-10 pointer-events-none"
+          style={{ background: `linear-gradient(to left, ${S.bg}, transparent)` }}
+        />
+      )}
+
+      {/* Right arrow */}
+      {canScrollRight && (
+        <button
+          onClick={() => scroll('right')}
+          className="absolute right-4 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full flex items-center justify-center shadow-lg transition-all duration-200 hover:scale-110 active:scale-95"
+          style={{ backgroundColor: S.green, color: '#fff' }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 18l6-6-6-6" />
+          </svg>
+        </button>
+      )}
+    </div>
+  )
+}
+
 // ─── Spreads Chart Card ───
 
 interface ChartConfig {
@@ -223,69 +329,67 @@ function SpreadsChart({ config, height = 320, expanded = false }: { config: Char
       </div>
 
       {/* Chart */}
-      <div className="px-3 pb-2">
-        <ResponsiveContainer width="100%" height={expanded ? 450 : height}>
-          {type === 'bar' ? (
-            <BarChart data={data} margin={{ top: 15, right: 55, bottom: 30, left: 10 }}>
-              <XAxis
-                dataKey="quarter"
-                tick={{ fontSize: expanded ? 12 : 11, fill: S.textMuted, fontWeight: 500 }}
-                axisLine={{ stroke: S.grid }}
-                tickLine={false}
-                interval={expanded ? 0 : 'preserveStartEnd'}
-                angle={-45}
-                textAnchor="end"
-              />
-              <YAxis
-                orientation="right"
-                tick={{ fontSize: 11, fill: S.textMuted, fontWeight: 500 }}
-                axisLine={false}
-                tickLine={false}
-                tickFormatter={valueFormatter}
-                width={60}
-              />
-              <Tooltip content={<SpreadsTooltip valueFormatter={valueFormatter} />} cursor={{ fill: `${brandColor}08` }} />
-              <Bar dataKey="value" radius={[3, 3, 0, 0]} animationBegin={animationDelay} animationDuration={800} animationEasing="ease-out">
-                {data.map((_, index) => (
-                  <Cell key={index} fill={index === lastIdx ? brandColor : mutedColor} />
-                ))}
-              </Bar>
-            </BarChart>
-          ) : (
-            <LineChart data={data} margin={{ top: 15, right: 55, bottom: 30, left: 10 }}>
-              <XAxis
-                dataKey="quarter"
-                tick={{ fontSize: expanded ? 12 : 11, fill: S.textMuted, fontWeight: 500 }}
-                axisLine={{ stroke: S.grid }}
-                tickLine={false}
-                interval={expanded ? 0 : 'preserveStartEnd'}
-                angle={-45}
-                textAnchor="end"
-              />
-              <YAxis
-                orientation="right"
-                tick={{ fontSize: 11, fill: S.textMuted, fontWeight: 500 }}
-                axisLine={false}
-                tickLine={false}
-                tickFormatter={valueFormatter}
-                width={60}
-              />
-              <Tooltip content={<SpreadsTooltip valueFormatter={valueFormatter} />} />
-              <Line
-                type="monotone"
-                dataKey="value"
-                stroke={brandColor}
-                strokeWidth={2.5}
-                dot={{ r: expanded ? 5 : 4, fill: brandColor, strokeWidth: 0 }}
-                activeDot={{ r: 7, fill: brandColor, stroke: '#fff', strokeWidth: 2 }}
-                animationBegin={animationDelay}
-                animationDuration={1000}
-                animationEasing="ease-out"
-              />
-            </LineChart>
-          )}
-        </ResponsiveContainer>
-      </div>
+      <ScrollableChartArea dataCount={data.length} height={expanded ? 450 : height}>
+        {type === 'bar' ? (
+          <BarChart data={data} margin={{ top: 15, right: 55, bottom: 30, left: 10 }}>
+            <XAxis
+              dataKey="quarter"
+              tick={{ fontSize: expanded ? 12 : 11, fill: S.textMuted, fontWeight: 500 }}
+              axisLine={{ stroke: S.grid }}
+              tickLine={false}
+              interval={data.length > VISIBLE_BARS ? 0 : 'preserveStartEnd'}
+              angle={-45}
+              textAnchor="end"
+            />
+            <YAxis
+              orientation="right"
+              tick={{ fontSize: 11, fill: S.textMuted, fontWeight: 500 }}
+              axisLine={false}
+              tickLine={false}
+              tickFormatter={valueFormatter}
+              width={60}
+            />
+            <Tooltip content={<SpreadsTooltip valueFormatter={valueFormatter} />} cursor={{ fill: `${brandColor}08` }} />
+            <Bar dataKey="value" radius={[3, 3, 0, 0]} animationBegin={animationDelay} animationDuration={800} animationEasing="ease-out">
+              {data.map((_, index) => (
+                <Cell key={index} fill={index === lastIdx ? brandColor : mutedColor} />
+              ))}
+            </Bar>
+          </BarChart>
+        ) : (
+          <LineChart data={data} margin={{ top: 15, right: 55, bottom: 30, left: 10 }}>
+            <XAxis
+              dataKey="quarter"
+              tick={{ fontSize: expanded ? 12 : 11, fill: S.textMuted, fontWeight: 500 }}
+              axisLine={{ stroke: S.grid }}
+              tickLine={false}
+              interval={data.length > VISIBLE_BARS ? 0 : 'preserveStartEnd'}
+              angle={-45}
+              textAnchor="end"
+            />
+            <YAxis
+              orientation="right"
+              tick={{ fontSize: 11, fill: S.textMuted, fontWeight: 500 }}
+              axisLine={false}
+              tickLine={false}
+              tickFormatter={valueFormatter}
+              width={60}
+            />
+            <Tooltip content={<SpreadsTooltip valueFormatter={valueFormatter} />} />
+            <Line
+              type="monotone"
+              dataKey="value"
+              stroke={brandColor}
+              strokeWidth={2.5}
+              dot={{ r: expanded ? 5 : 4, fill: brandColor, strokeWidth: 0 }}
+              activeDot={{ r: 7, fill: brandColor, stroke: '#fff', strokeWidth: 2 }}
+              animationBegin={animationDelay}
+              animationDuration={1000}
+              animationEasing="ease-out"
+            />
+          </LineChart>
+        )}
+      </ScrollableChartArea>
 
       {/* Watermark */}
       <div className="flex justify-end items-center gap-1.5 px-5 pb-3">
@@ -354,18 +458,16 @@ function SpreadsMultiChartInner({ config, height = 320, expanded = false }: { co
           </div>
         </div>
       </div>
-      <div className="px-3 pb-2">
-        <ResponsiveContainer width="100%" height={expanded ? 450 : height}>
-          <BarChart data={data} margin={{ top: 15, right: 55, bottom: 30, left: 10 }}>
-            <XAxis dataKey="quarter" tick={{ fontSize: expanded ? 12 : 11, fill: S.textMuted, fontWeight: 500 }} axisLine={{ stroke: S.grid }} tickLine={false} interval={expanded ? 0 : 'preserveStartEnd'} angle={-45} textAnchor="end" />
-            <YAxis orientation="right" tick={{ fontSize: 11, fill: S.textMuted, fontWeight: 500 }} axisLine={false} tickLine={false} tickFormatter={formatCompact} width={60} />
-            <Tooltip content={<SpreadsTooltip valueFormatter={formatCompact} />} cursor={{ fill: 'rgba(27,58,45,0.05)' }} />
-            {series.map((s, i) => (
-              <Bar key={s.key} dataKey={s.key} name={s.label} fill={s.color} radius={[2, 2, 0, 0]} animationBegin={(animationDelay || 0) + i * 150} animationDuration={800} animationEasing="ease-out" />
-            ))}
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
+      <ScrollableChartArea dataCount={data.length} height={expanded ? 450 : height}>
+        <BarChart data={data} margin={{ top: 15, right: 55, bottom: 30, left: 10 }}>
+          <XAxis dataKey="quarter" tick={{ fontSize: expanded ? 12 : 11, fill: S.textMuted, fontWeight: 500 }} axisLine={{ stroke: S.grid }} tickLine={false} interval={data.length > VISIBLE_BARS ? 0 : 'preserveStartEnd'} angle={-45} textAnchor="end" />
+          <YAxis orientation="right" tick={{ fontSize: 11, fill: S.textMuted, fontWeight: 500 }} axisLine={false} tickLine={false} tickFormatter={formatCompact} width={60} />
+          <Tooltip content={<SpreadsTooltip valueFormatter={formatCompact} />} cursor={{ fill: 'rgba(27,58,45,0.05)' }} />
+          {series.map((s, i) => (
+            <Bar key={s.key} dataKey={s.key} name={s.label} fill={s.color} radius={[2, 2, 0, 0]} animationBegin={(animationDelay || 0) + i * 150} animationDuration={800} animationEasing="ease-out" />
+          ))}
+        </BarChart>
+      </ScrollableChartArea>
       <div className="flex justify-center gap-5 pb-2">
         {series.map(s => (
           <span key={s.key} className="flex items-center gap-1.5 text-xs font-medium" style={{ color: S.textMuted }}>
@@ -402,12 +504,22 @@ function ExpandableMultiChart({ config, height }: { config: MultiChartConfig; he
 
 // ─── Fundamentals Section ───
 
+// ─── Mobile Chart Tab Item ───
+interface ChartTab {
+  label: string
+  shortLabel: string
+  type: 'single' | 'multi'
+  config?: ChartConfig
+  multiConfig?: MultiChartConfig
+}
+
 function FundamentalsSection({ data, symbol, companyName, logo, brandColor }: {
   data: FundamentalsData; symbol: string; companyName: string; logo?: string; brandColor: string
 }) {
+  const [mobileTab, setMobileTab] = useState(0)
+
   const quarters = useMemo(() => {
-    const sorted = [...data.quarters].sort((a, b) => a.date.localeCompare(b.date))
-    return sorted.slice(-20)
+    return [...data.quarters].sort((a, b) => a.date.localeCompare(b.date))
   }, [data.quarters])
 
   const mkData = useCallback((field: keyof QuarterData) =>
@@ -430,72 +542,103 @@ function FundamentalsSection({ data, symbol, companyName, logo, brandColor }: {
       quarter: formatQuarterLabel(q.date), debt: q.totalDebt ?? 0, cash: q.cashAndEquivalents ?? 0,
     })), [quarters])
 
-  if (revenueData.length === 0 && epsData.length === 0) return null
+  // Build list of all available chart tabs
+  const tabs = useMemo(() => {
+    const t: ChartTab[] = []
+    if (revenueData.length > 0)
+      t.push({ label: 'Quarterly Revenue', shortLabel: 'Revenue', type: 'single', config: { title: 'Quarterly Revenue', symbol, companyName, logo, data: revenueData, brandColor, animationDelay: 0 } })
+    if (epsData.length > 0)
+      t.push({ label: 'Earnings Per Share', shortLabel: 'EPS', type: 'single', config: { title: 'Earnings Per Share', symbol, companyName, logo, data: epsData, type: 'line', brandColor, valueFormatter: (v: number) => `$${v.toFixed(2)}`, animationDelay: 0 } })
+    if (netIncomeData.length > 0)
+      t.push({ label: 'Net Income', shortLabel: 'Net Income', type: 'single', config: { title: 'Net Income', symbol, companyName, logo, data: netIncomeData, brandColor, animationDelay: 0 } })
+    if (fcfData.length > 0)
+      t.push({ label: 'Free Cash Flow', shortLabel: 'FCF', type: 'single', config: { title: 'Free Cash Flow', symbol, companyName, logo, data: fcfData, brandColor, animationDelay: 0 } })
+    if (balanceSheetData.length > 0)
+      t.push({
+        label: 'Assets vs Liabilities', shortLabel: 'Balance Sheet', type: 'multi',
+        multiConfig: {
+          title: 'Assets vs Liabilities', symbol, companyName, logo, data: balanceSheetData,
+          series: [
+            { key: 'assets', label: 'Assets', color: '#3b82f6' },
+            { key: 'liabilities', label: 'Liabilities', color: S.red },
+            { key: 'equity', label: 'Equity', color: S.accent },
+          ],
+        },
+      })
+    if (debtCashData.length > 0)
+      t.push({
+        label: 'Debt vs Cash', shortLabel: 'Debt/Cash', type: 'multi',
+        multiConfig: {
+          title: 'Debt vs Cash', symbol, companyName, logo, data: debtCashData,
+          series: [
+            { key: 'debt', label: 'Total Debt', color: S.red },
+            { key: 'cash', label: 'Cash', color: S.accent },
+          ],
+        },
+      })
+    return t
+  }, [revenueData, epsData, netIncomeData, fcfData, balanceSheetData, debtCashData, symbol, companyName, logo, brandColor])
+
+  if (tabs.length === 0) return null
 
   const chartHeight = 350
-
-  const charts: Array<{ config: ChartConfig } | { multi: MultiChartConfig }> = []
-
-  if (revenueData.length > 0)
-    charts.push({ config: { title: 'Quarterly Revenue', symbol, companyName, logo, data: revenueData, brandColor, animationDelay: 0 } })
-  if (epsData.length > 0)
-    charts.push({ config: { title: 'Earnings Per Share', symbol, companyName, logo, data: epsData, type: 'line', brandColor, valueFormatter: (v: number) => `$${v.toFixed(2)}`, animationDelay: 150 } })
-  if (netIncomeData.length > 0)
-    charts.push({ config: { title: 'Net Income', symbol, companyName, logo, data: netIncomeData, brandColor, animationDelay: 300 } })
-  if (fcfData.length > 0)
-    charts.push({ config: { title: 'Free Cash Flow', symbol, companyName, logo, data: fcfData, brandColor, animationDelay: 450 } })
+  const activeTab = tabs[mobileTab] || tabs[0]
 
   return (
     <div className="space-y-6">
-      {/* Title */}
       <h2 className="text-xl font-bold" style={{ color: S.text }}>Fundamentals</h2>
 
-      {/* Single-series charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {charts.map((c, i) =>
-          'config' in c ? <ExpandableChart key={i} config={c.config} height={chartHeight} /> : null
+      {/* ─── Desktop: Grid layout (unchanged) ─── */}
+      <div className="hidden lg:block space-y-6">
+        <div className="grid grid-cols-2 gap-6">
+          {tabs.filter(t => t.type === 'single').map((t, i) => (
+            <ExpandableChart key={i} config={{ ...t.config!, animationDelay: i * 150 }} height={chartHeight} />
+          ))}
+        </div>
+        {tabs.some(t => t.type === 'multi') && (
+          <>
+            <h2 className="text-xl font-bold mt-4" style={{ color: S.text }}>Balance Sheet</h2>
+            <div className="grid grid-cols-2 gap-6">
+              {tabs.filter(t => t.type === 'multi').map((t, i) => (
+                <ExpandableMultiChart key={i} config={{ ...t.multiConfig!, animationDelay: 600 + i * 150 }} height={chartHeight} />
+              ))}
+            </div>
+          </>
         )}
       </div>
 
-      {/* Multi-series charts */}
-      {(balanceSheetData.length > 0 || debtCashData.length > 0) && (
-        <>
-          <h2 className="text-xl font-bold mt-4" style={{ color: S.text }}>Balance Sheet</h2>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {balanceSheetData.length > 0 && (
-              <ExpandableMultiChart
-                config={{
-                  title: 'Assets vs Liabilities',
-                  symbol, companyName, logo,
-                  data: balanceSheetData,
-                  series: [
-                    { key: 'assets', label: 'Assets', color: '#3b82f6' },
-                    { key: 'liabilities', label: 'Liabilities', color: S.red },
-                    { key: 'equity', label: 'Equity', color: S.accent },
-                  ],
-                  animationDelay: 600,
-                }}
-                height={chartHeight}
-              />
-            )}
-            {debtCashData.length > 0 && (
-              <ExpandableMultiChart
-                config={{
-                  title: 'Debt vs Cash',
-                  symbol, companyName, logo,
-                  data: debtCashData,
-                  series: [
-                    { key: 'debt', label: 'Total Debt', color: S.red },
-                    { key: 'cash', label: 'Cash', color: S.accent },
-                  ],
-                  animationDelay: 750,
-                }}
-                height={chartHeight}
-              />
-            )}
-          </div>
-        </>
-      )}
+      {/* ─── Mobile: Single chart with tab bar ─── */}
+      <div className="lg:hidden">
+        {/* Chart display */}
+        <div
+          className="rounded-2xl overflow-hidden"
+          style={{ backgroundColor: S.bg, animation: 'fadeUp 0.4s ease-out both' }}
+        >
+          {activeTab.type === 'single' && activeTab.config ? (
+            <SpreadsChart config={activeTab.config} height={300} />
+          ) : activeTab.multiConfig ? (
+            <SpreadsMultiChartInner config={activeTab.multiConfig} height={300} />
+          ) : null}
+        </div>
+
+        {/* Tab bar */}
+        <div className="mt-3 flex gap-1.5 overflow-x-auto scrollbar-hide pb-1 px-0.5">
+          {tabs.map((tab, i) => (
+            <button
+              key={i}
+              onClick={() => setMobileTab(i)}
+              className="px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all duration-200 shrink-0"
+              style={{
+                backgroundColor: mobileTab === i ? brandColor : S.bg,
+                color: mobileTab === i ? '#fff' : S.textMuted,
+                boxShadow: mobileTab === i ? `0 2px 8px ${brandColor}40` : 'none',
+              }}
+            >
+              {tab.shortLabel}
+            </button>
+          ))}
+        </div>
+      </div>
     </div>
   )
 }
@@ -618,7 +761,7 @@ export default function StockDetailPage() {
         <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-6 mb-8">
           {/* Price Widget — Square Card */}
           <div
-            className="rounded-2xl p-6 flex flex-col justify-between aspect-auto lg:aspect-square"
+            className="rounded-2xl p-5 sm:p-6 flex flex-col justify-between lg:aspect-square"
             style={{ backgroundColor: S.bg, animation: 'fadeUp 0.4s ease-out both' }}
           >
             {/* Top: Logo + Name */}
@@ -693,8 +836,8 @@ export default function StockDetailPage() {
             </div>
           </div>
 
-          {/* TradingView Chart */}
-          <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: S.bg, animation: 'fadeUp 0.4s ease-out 100ms both' }}>
+          {/* TradingView Chart — hidden on mobile for cleaner experience */}
+          <div className="rounded-2xl overflow-hidden hidden sm:block" style={{ backgroundColor: S.bg, animation: 'fadeUp 0.4s ease-out 100ms both' }}>
             <div className="px-6 pt-4 pb-2 flex items-center justify-between">
               <h2 className="text-lg font-bold" style={{ color: S.text }}>Price Chart</h2>
               <span className="text-xs font-medium" style={{ color: S.textDim }}>TradingView</span>
