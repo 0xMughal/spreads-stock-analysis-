@@ -8,7 +8,11 @@
     }
   },
   "crons": [
-{
+    {
+      "path": "/api/cron/refresh-prices",
+      "schedule": "0 13 * * *"
+    },
+    {
       "path": "/api/cron/refresh-sp500",
       "schedule": "0 14 * * *"
     },
