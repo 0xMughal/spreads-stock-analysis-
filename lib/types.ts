@@ -399,3 +399,24 @@ export interface HistoricalPriceBatch {
   symbol: string
   prices: Record<string, number> // date -> price mapping
 }
+
+// Insider Trading Types
+export interface InsiderTrade {
+  name: string
+  title: string
+  date: string
+  type: 'buy' | 'sell' | 'exercise'
+  shares: number
+  pricePerShare: number
+  totalValue: number
+  sharesOwned: number
+  symbol?: string
+  companyName?: string
+}
+
+export interface InsiderTradesResponse {
+  symbol: string
+  trades: InsiderTrade[]
+  fetchedAt: number
+  source: 'finnhub' | 'sec-edgar' | 'simulated'
+}

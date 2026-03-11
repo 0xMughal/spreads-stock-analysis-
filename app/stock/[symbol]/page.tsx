@@ -4,10 +4,11 @@ import { useEffect, useState, useRef, useMemo, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Stock } from '@/lib/types'
+import { Stock, InsiderTrade } from '@/lib/types'
 import { formatCurrency, formatLargeCurrency, formatPercent } from '@/lib/utils'
 import { useTheme } from '@/app/context/ThemeContext'
 import StockLogo from '@/app/components/StockLogo'
+import WatchlistButton from '@/app/components/WatchlistButton'
 import { getBrandColor } from '@/lib/data/brand-colors'
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis,
@@ -735,6 +736,147 @@ function FundamentalsSection({ data, symbol, companyName, logo, brandColor }: {
   )
 }
 
+// ─── Insider Activity Section ───
+
+function InsiderActivitySection({ symbol }: { symbol: string }) {
+  const [trades, setTrades] = useState<InsiderTrade[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetch(`/api/insider-trades/${symbol}`)
+      .then((r) => r.json())
+      .then((data) => setTrades((data.trades || []).slice(0, 10)))
+      .catch(() => setTrades([]))
+      .finally(() => setLoading(false))
+  }, [symbol])
+
+  if (loading) {
+    return (
+      <div className="mt-8" style={{ animation: 'fadeUp 0.4s ease-out 400ms both' }}>
+        <h2 className="text-xl font-bold mb-4" style={{ color: S.text }}>Insider Activity</h2>
+        <div className="rounded-2xl p-8 flex items-center justify-center" style={{ backgroundColor: S.bg }}>
+          <div className="w-6 h-6 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: S.greenDim, borderTopColor: S.green }} />
+        </div>
+      </div>
+    )
+  }
+
+  if (trades.length === 0) return null
+
+  const formatInsiderValue = (value: number): string => {
+    const abs = Math.abs(value)
+    if (abs >= 1e9) return `$${(value / 1e9).toFixed(2)}B`
+    if (abs >= 1e6) return `$${(value / 1e6).toFixed(2)}M`
+    if (abs >= 1e3) return `$${(value / 1e3).toFixed(0)}K`
+    return `$${value.toFixed(2)}`
+  }
+
+  const formatInsiderShares = (n: number): string => {
+    if (n >= 1e6) return `${(n / 1e6).toFixed(1)}M`
+    if (n >= 1e3) return `${(n / 1e3).toFixed(1)}K`
+    return n.toLocaleString()
+  }
+
+  const formatInsiderDate = (dateStr: string): string => {
+    const d = new Date(dateStr + 'T00:00:00')
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  }
+
+  return (
+    <div className="mt-8" style={{ animation: 'fadeUp 0.4s ease-out 400ms both' }}>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-bold" style={{ color: S.text }}>Insider Activity</h2>
+        <Link
+          href={`/insiders?symbol=${symbol}`}
+          className="text-xs font-medium flex items-center gap-1 hover:opacity-70 transition-opacity"
+          style={{ color: S.greenLight }}
+        >
+          View all insider trades
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M5 12h14M12 5l7 7-7 7" />
+          </svg>
+        </Link>
+      </div>
+
+      <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: S.bg }}>
+        {/* Desktop table */}
+        <div className="hidden sm:block">
+          <table className="w-full">
+            <thead>
+              <tr style={{ borderBottom: `1px solid ${S.grid}` }}>
+                <th className="text-left px-5 py-3 text-[10px] font-semibold uppercase tracking-wider" style={{ color: S.textDim }}>Date</th>
+                <th className="text-left px-5 py-3 text-[10px] font-semibold uppercase tracking-wider" style={{ color: S.textDim }}>Name</th>
+                <th className="text-left px-5 py-3 text-[10px] font-semibold uppercase tracking-wider" style={{ color: S.textDim }}>Title</th>
+                <th className="text-center px-5 py-3 text-[10px] font-semibold uppercase tracking-wider" style={{ color: S.textDim }}>Type</th>
+                <th className="text-right px-5 py-3 text-[10px] font-semibold uppercase tracking-wider" style={{ color: S.textDim }}>Shares</th>
+                <th className="text-right px-5 py-3 text-[10px] font-semibold uppercase tracking-wider" style={{ color: S.textDim }}>Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              {trades.map((trade, i) => {
+                const isBuy = trade.type === 'buy'
+                const isSell = trade.type === 'sell'
+                return (
+                  <tr key={`${trade.name}-${trade.date}-${i}`} style={{ borderBottom: i < trades.length - 1 ? `1px solid ${S.grid}` : 'none' }}>
+                    <td className="px-5 py-3 text-xs font-medium" style={{ color: S.textMuted }}>{formatInsiderDate(trade.date)}</td>
+                    <td className="px-5 py-3 text-xs font-medium" style={{ color: S.text }}>{trade.name}</td>
+                    <td className="px-5 py-3 text-xs" style={{ color: S.textMuted }}>{trade.title}</td>
+                    <td className="px-5 py-3 text-center">
+                      <span
+                        className="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold"
+                        style={{
+                          backgroundColor: isBuy ? `${S.accent}20` : isSell ? `${S.red}20` : '#eab30820',
+                          color: isBuy ? S.accent : isSell ? S.red : '#eab308',
+                        }}
+                      >
+                        {trade.type === 'buy' ? 'Buy' : trade.type === 'sell' ? 'Sell' : 'Exercise'}
+                      </span>
+                    </td>
+                    <td className="px-5 py-3 text-xs font-medium text-right" style={{ color: S.text }}>{formatInsiderShares(trade.shares)}</td>
+                    <td className="px-5 py-3 text-xs font-bold text-right" style={{ color: isBuy ? S.accent : isSell ? S.red : S.text }}>
+                      {trade.totalValue > 0 ? formatInsiderValue(trade.totalValue) : 'N/A'}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Mobile cards */}
+        <div className="sm:hidden divide-y" style={{ borderColor: S.grid }}>
+          {trades.map((trade, i) => {
+            const isBuy = trade.type === 'buy'
+            const isSell = trade.type === 'sell'
+            return (
+              <div key={`m-${trade.name}-${trade.date}-${i}`} className="px-4 py-3">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-xs font-medium" style={{ color: S.text }}>{trade.name}</span>
+                  <span
+                    className="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold"
+                    style={{
+                      backgroundColor: isBuy ? `${S.accent}20` : isSell ? `${S.red}20` : '#eab30820',
+                      color: isBuy ? S.accent : isSell ? S.red : '#eab308',
+                    }}
+                  >
+                    {trade.type === 'buy' ? 'Buy' : trade.type === 'sell' ? 'Sell' : 'Exercise'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px]" style={{ color: S.textMuted }}>{trade.title} &middot; {formatInsiderDate(trade.date)}</span>
+                  <span className="text-xs font-bold" style={{ color: isBuy ? S.accent : isSell ? S.red : S.text }}>
+                    {trade.totalValue > 0 ? formatInsiderValue(trade.totalValue) : formatInsiderShares(trade.shares) + ' shares'}
+                  </span>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Main Page ───
 
 export default function StockDetailPage() {
@@ -860,8 +1002,11 @@ export default function StockDetailPage() {
             <div>
               <div className="flex items-center gap-3 mb-4">
                 <StockLogo symbol={stock.symbol} name={stock.name} logo={logoUrl} size="xl" />
-                <div>
-                  <h1 className="text-2xl font-bold" style={{ color: S.text }}>{stock.symbol}</h1>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <h1 className="text-2xl font-bold" style={{ color: S.text }}>{stock.symbol}</h1>
+                    <WatchlistButton symbol={stock.symbol} size="md" />
+                  </div>
                   <p className="text-sm" style={{ color: S.textMuted }}>{stock.name}</p>
                 </div>
               </div>
@@ -983,6 +1128,9 @@ export default function StockDetailPage() {
             brandColor={brandColor}
           />
         )}
+
+        {/* ─── Insider Activity ─── */}
+        <InsiderActivitySection symbol={stock.symbol} />
 
         {/* Back */}
         <div className="mt-10 mb-6 flex justify-center">

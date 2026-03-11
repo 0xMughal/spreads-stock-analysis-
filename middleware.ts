@@ -26,6 +26,8 @@ const publicRoutes = [
   "/api/earnings",
   "/api/compound-calculations",
   "/api/portfolio",
+  "/api/watchlist",
+  "/watchlist",
   "/data",
 ]
 

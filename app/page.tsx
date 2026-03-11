@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import StockLogo from './components/StockLogo'
+import WatchlistButton from './components/WatchlistButton'
 import { Stock } from '@/lib/types'
 import { REGIONS, RegionKey } from '@/lib/data/regions'
 import { INDEXES, IndexKey } from '@/lib/data/indexes'
@@ -183,6 +184,47 @@ export default function Home() {
     [router]
   )
 
+  // Market Pulse tickers
+  const PULSE_SYMBOLS = ['SPY', 'QQQ', 'DIA', 'BTC-USD', 'GLD']
+  const pulseStocks = useMemo(() => {
+    return PULSE_SYMBOLS.map((sym) => stocks.find((s) => s.symbol === sym)).filter(Boolean) as Stock[]
+  }, [stocks])
+
+  // Market status (ET timezone)
+  const isMarketOpen = useMemo(() => {
+    const now = new Date()
+    const et = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }))
+    const day = et.getDay()
+    const hours = et.getHours()
+    const minutes = et.getMinutes()
+    const totalMinutes = hours * 60 + minutes
+    return day >= 1 && day <= 5 && totalMinutes >= 570 && totalMinutes < 960 // 9:30 AM - 4:00 PM
+  }, [])
+
+  // Average market change
+  const avgChange = useMemo(() => {
+    if (stocks.length === 0) return 0
+    const sum = stocks.reduce((acc, s) => acc + (s.changesPercentage || 0), 0)
+    return sum / stocks.length
+  }, [stocks])
+
+  // Top movers
+  const isDefaultView = !search.trim() && activeCategory === 'all' && activeRegion === 'all' && activeIndex === 'all'
+
+  const topGainers = useMemo(() => {
+    return [...stocks]
+      .filter((s) => s.changesPercentage > 0)
+      .sort((a, b) => b.changesPercentage - a.changesPercentage)
+      .slice(0, 8)
+  }, [stocks])
+
+  const topLosers = useMemo(() => {
+    return [...stocks]
+      .filter((s) => s.changesPercentage < 0)
+      .sort((a, b) => a.changesPercentage - b.changesPercentage)
+      .slice(0, 8)
+  }, [stocks])
+
   return (
     <div className="min-h-screen flex flex-col" style={{ backgroundColor: 'var(--bg-primary)' }}>
       {/* Header */}
@@ -249,6 +291,36 @@ export default function Home() {
             </span>
 
             <button
+              onClick={() => router.push('/watchlist')}
+              className="px-2.5 py-1 rounded-lg text-[11px] sm:text-xs font-medium transition-all duration-150 hidden sm:flex items-center gap-1.5 shrink-0"
+              style={{
+                backgroundColor: 'var(--bg-tertiary)',
+                color: 'var(--text-secondary)',
+                border: '1px solid var(--border-color)',
+              }}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+              </svg>
+              Watchlist
+            </button>
+
+            <button
+              onClick={() => router.push('/screener')}
+              className="px-2.5 py-1 rounded-lg text-[11px] sm:text-xs font-medium transition-all duration-150 hidden sm:flex items-center gap-1.5 shrink-0"
+              style={{
+                backgroundColor: 'var(--bg-tertiary)',
+                color: 'var(--text-secondary)',
+                border: '1px solid var(--border-color)',
+              }}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z" />
+              </svg>
+              Screener
+            </button>
+
+            <button
               onClick={toggleTheme}
               className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors"
               style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)', border: '1px solid var(--border-color)' }}
@@ -264,8 +336,174 @@ export default function Home() {
         </div>
       </header>
 
+      {/* Market Pulse Ticker Strip */}
+      {!loading && pulseStocks.length > 0 && (
+        <div
+          className="w-full overflow-hidden"
+          style={{
+            backgroundColor: 'var(--bg-secondary)',
+            borderBottom: '1px solid var(--border-color)',
+            height: 34,
+          }}
+        >
+          <div className="ticker-scroll h-full items-center gap-0 sm:gap-0 sm:justify-center sm:max-w-[1200px] sm:mx-auto sm:px-8">
+            {/* Duplicate items for seamless mobile scroll */}
+            {[...pulseStocks, ...pulseStocks].map((stock, i) => (
+              <button
+                key={`${stock.symbol}-${i}`}
+                onClick={() => handleStockClick(stock.symbol)}
+                className="flex items-center gap-2 px-4 sm:px-5 h-full shrink-0 transition-colors"
+                style={{ color: 'var(--text-secondary)' }}
+              >
+                <span className="text-[10px] sm:text-[11px] font-semibold tracking-wide" style={{ color: 'var(--text-muted)' }}>
+                  {stock.symbol === 'BTC-USD' ? 'BTC' : stock.symbol}
+                </span>
+                <span className="text-[11px] sm:text-xs font-medium" style={{ color: 'var(--text-primary)' }}>
+                  ${stock.price?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+                <span
+                  className="text-[10px] sm:text-[11px] font-semibold"
+                  style={{ color: stock.changesPercentage >= 0 ? '#22c55e' : '#ef4444' }}
+                >
+                  {stock.changesPercentage >= 0 ? '+' : ''}{stock.changesPercentage?.toFixed(2)}%
+                </span>
+                {/* Separator dot */}
+                <span
+                  className="w-[3px] h-[3px] rounded-full ml-2 sm:ml-3 hidden sm:block"
+                  style={{ backgroundColor: 'var(--border-color)' }}
+                />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Quick Stats Bar */}
+      {!loading && stocks.length > 0 && (
+        <div
+          className="w-full"
+          style={{ borderBottom: '1px solid var(--border-color)' }}
+        >
+          <div className="max-w-[1200px] mx-auto px-4 sm:px-8 py-1.5 flex items-center gap-4 sm:gap-6">
+            <div className="flex items-center gap-1.5">
+              <span
+                className="w-1.5 h-1.5 rounded-full"
+                style={{ backgroundColor: isMarketOpen ? '#22c55e' : '#ef4444' }}
+              />
+              <span className="text-[10px] sm:text-[11px] font-medium" style={{ color: 'var(--text-muted)' }}>
+                Market: {isMarketOpen ? 'Open' : 'Closed'}
+              </span>
+            </div>
+            <span className="text-[10px] sm:text-[11px]" style={{ color: 'var(--text-muted)' }}>
+              {stocks.length.toLocaleString()} stocks
+            </span>
+            <span className="text-[10px] sm:text-[11px] font-medium" style={{ color: avgChange >= 0 ? '#22c55e' : '#ef4444' }}>
+              Avg: {avgChange >= 0 ? '+' : ''}{avgChange.toFixed(2)}%
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Logo Grid */}
       <main className="flex-1 max-w-[1200px] w-full mx-auto px-4 sm:px-8 py-6 sm:py-10">
+        {/* Top Movers Section */}
+        {!loading && isDefaultView && (topGainers.length > 0 || topLosers.length > 0) && (
+          <div className="mb-8 sm:mb-10">
+            <h2
+              className="text-[11px] sm:text-xs font-semibold uppercase tracking-widest mb-4"
+              style={{ color: 'var(--text-muted)' }}
+            >
+              Today&apos;s Movers
+            </h2>
+
+            {/* Top Gainers */}
+            {topGainers.length > 0 && (
+              <div className="mb-4">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M18 15l-6-6-6 6" />
+                  </svg>
+                  <span className="text-[10px] sm:text-[11px] font-semibold" style={{ color: '#22c55e' }}>
+                    Top Gainers
+                  </span>
+                </div>
+                <div className="flex gap-2.5 overflow-x-auto scrollbar-hide pb-1">
+                  {topGainers.map((stock) => (
+                    <button
+                      key={stock.symbol}
+                      onClick={() => handleStockClick(stock.symbol)}
+                      className="shrink-0 flex items-center gap-2.5 px-3 py-2.5 rounded-xl transition-all duration-200 active:scale-95 sm:hover:-translate-y-0.5"
+                      style={{
+                        backgroundColor: 'var(--card-bg)',
+                        border: '1px solid var(--card-border)',
+                        minWidth: 120,
+                      }}
+                    >
+                      <StockLogo symbol={stock.symbol} name={stock.name} logo={stock.logo} size="sm" />
+                      <div className="flex flex-col items-start">
+                        <span className="text-[11px] font-semibold" style={{ color: 'var(--text-primary)' }}>
+                          {stock.symbol}
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] font-medium" style={{ color: 'var(--text-muted)' }}>
+                            ${stock.price?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
+                          <span className="text-[10px] font-bold" style={{ color: '#22c55e' }}>
+                            +{stock.changesPercentage?.toFixed(2)}%
+                          </span>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Top Losers */}
+            {topLosers.length > 0 && (
+              <div>
+                <div className="flex items-center gap-1.5 mb-2">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M6 9l6 6 6-6" />
+                  </svg>
+                  <span className="text-[10px] sm:text-[11px] font-semibold" style={{ color: '#ef4444' }}>
+                    Top Losers
+                  </span>
+                </div>
+                <div className="flex gap-2.5 overflow-x-auto scrollbar-hide pb-1">
+                  {topLosers.map((stock) => (
+                    <button
+                      key={stock.symbol}
+                      onClick={() => handleStockClick(stock.symbol)}
+                      className="shrink-0 flex items-center gap-2.5 px-3 py-2.5 rounded-xl transition-all duration-200 active:scale-95 sm:hover:-translate-y-0.5"
+                      style={{
+                        backgroundColor: 'var(--card-bg)',
+                        border: '1px solid var(--card-border)',
+                        minWidth: 120,
+                      }}
+                    >
+                      <StockLogo symbol={stock.symbol} name={stock.name} logo={stock.logo} size="sm" />
+                      <div className="flex flex-col items-start">
+                        <span className="text-[11px] font-semibold" style={{ color: 'var(--text-primary)' }}>
+                          {stock.symbol}
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] font-medium" style={{ color: 'var(--text-muted)' }}>
+                            ${stock.price?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
+                          <span className="text-[10px] font-bold" style={{ color: '#ef4444' }}>
+                            {stock.changesPercentage?.toFixed(2)}%
+                          </span>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {loading ? (
           <div className="flex items-center justify-center py-32">
             <div className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: 'var(--border-color)', borderTopColor: 'var(--accent, var(--spreads-green))' }} />
@@ -283,38 +521,46 @@ export default function Home() {
             }}
           >
             {displayStocks.map((stock, i) => (
-              <button
+              <div
                 key={stock.symbol}
-                onClick={() => handleStockClick(stock.symbol)}
-                className="group flex flex-col items-center gap-1 sm:gap-2 outline-none active:scale-95 transition-transform"
+                className="relative group"
                 style={{
                   animation: `fadeUp 0.3s ease-out ${Math.min(i * 12, 600)}ms both`,
                 }}
               >
-                <div className="transition-transform duration-300 ease-out sm:group-hover:scale-110 sm:group-hover:-translate-y-1">
-                  <StockLogo
-                    symbol={stock.symbol}
-                    name={stock.name}
-                    logo={stock.logo}
-                    size="lg"
-                    className="shadow-md sm:group-hover:shadow-xl transition-shadow duration-300 sm:hidden"
-                  />
-                  <StockLogo
-                    symbol={stock.symbol}
-                    name={stock.name}
-                    logo={stock.logo}
-                    size="xl"
-                    className="shadow-md sm:group-hover:shadow-xl transition-shadow duration-300 hidden sm:block"
-                  />
+                {/* Watchlist star — always visible on mobile, hover on desktop */}
+                <div className="absolute -top-1 -right-1 z-10 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200">
+                  <WatchlistButton symbol={stock.symbol} size="sm" />
                 </div>
-                <span
-                  className="text-[9px] sm:text-[10px] font-medium tracking-wide max-w-[60px] sm:max-w-[90px] truncate text-center sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200"
-                  style={{ color: 'var(--text-muted)' }}
-                  title={stock.name}
+                <button
+                  onClick={() => handleStockClick(stock.symbol)}
+                  className="flex flex-col items-center gap-1 sm:gap-2 outline-none active:scale-95 transition-transform w-full"
                 >
-                  {stock.symbol}
-                </span>
-              </button>
+                  <div className="transition-transform duration-300 ease-out sm:group-hover:scale-110 sm:group-hover:-translate-y-1">
+                    <StockLogo
+                      symbol={stock.symbol}
+                      name={stock.name}
+                      logo={stock.logo}
+                      size="lg"
+                      className="shadow-md sm:group-hover:shadow-xl transition-shadow duration-300 sm:hidden"
+                    />
+                    <StockLogo
+                      symbol={stock.symbol}
+                      name={stock.name}
+                      logo={stock.logo}
+                      size="xl"
+                      className="shadow-md sm:group-hover:shadow-xl transition-shadow duration-300 hidden sm:block"
+                    />
+                  </div>
+                  <span
+                    className="text-[9px] sm:text-[10px] font-medium tracking-wide max-w-[60px] sm:max-w-[90px] truncate text-center sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200"
+                    style={{ color: 'var(--text-muted)' }}
+                    title={stock.name}
+                  >
+                    {stock.symbol}
+                  </span>
+                </button>
+              </div>
             ))}
           </div>
         )}
