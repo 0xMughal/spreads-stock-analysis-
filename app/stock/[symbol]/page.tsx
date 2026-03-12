@@ -263,8 +263,8 @@ function ChartModal({ open, onClose, children }: { open: boolean; onClose: () =>
 // ─── Scrollable Chart Wrapper ───
 // Shows ~12-16 bars in view, scrolls horizontally for more. Auto-scrolls to latest data.
 
-const VISIBLE_BARS = 14
-const MIN_BAR_WIDTH = 44 // px per data point
+const VISIBLE_BARS = 30
+const MIN_BAR_WIDTH = 32 // px per data point
 
 function ScrollableChartArea({ dataCount, height, children }: { dataCount: number; height: number; children: React.ReactNode }) {
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -641,14 +641,18 @@ function FundamentalsSection({ data, symbol, companyName, logo, brandColor, curr
   // P/E Ratio over time (using current price / TTM EPS at each quarter)
   const peRatioData = useMemo(() => {
     if (!currentPrice || currentPrice <= 0 || ttmEpsData.length === 0) return []
-    // We only know the current price, so show the latest P/E as a reference
-    // For historical, we use TTM EPS to show how P/E would look at today's price
-    return ttmEpsData
+    const raw = ttmEpsData
       .filter(d => d.value > 0) // P/E only meaningful for positive earnings
       .map(d => ({
         quarter: d.quarter,
         value: parseFloat((currentPrice / d.value).toFixed(1)),
       }))
+    if (raw.length === 0) return raw
+    // Clip outliers: cap at 3x the median to keep the chart readable
+    const sorted = [...raw].sort((a, b) => a.value - b.value)
+    const median = sorted[Math.floor(sorted.length / 2)].value
+    const cap = Math.max(median * 3, 100) // at least 100x cap
+    return raw.map(d => ({ ...d, value: Math.min(d.value, cap) }))
   }, [currentPrice, ttmEpsData])
 
   // Gross Margin % per quarter
@@ -708,14 +712,14 @@ function FundamentalsSection({ data, symbol, companyName, logo, brandColor, curr
     const t: ChartTab[] = []
     if (revenueData.length > 0)
       t.push({ label: 'Quarterly Revenue', shortLabel: 'Revenue', type: 'single', config: { title: 'Quarterly Revenue', symbol, companyName, logo, data: revenueData, brandColor, animationDelay: 0 } })
+    if (peRatioData.length > 0)
+      t.push({ label: 'P/E Ratio (TTM)', shortLabel: 'P/E', type: 'single', config: { title: 'P/E Ratio (TTM)', symbol, companyName, logo, data: peRatioData, type: 'line', brandColor, valueFormatter: (v: number) => `${v.toFixed(1)}x`, animationDelay: 0 } })
     if (epsData.length > 0)
       t.push({ label: 'Earnings Per Share', shortLabel: 'EPS', type: 'single', config: { title: 'Earnings Per Share', symbol, companyName, logo, data: epsData, type: 'line', brandColor, valueFormatter: (v: number) => `$${v.toFixed(2)}`, animationDelay: 0 } })
     if (netIncomeData.length > 0)
       t.push({ label: 'Net Income', shortLabel: 'Net Income', type: 'single', config: { title: 'Net Income', symbol, companyName, logo, data: netIncomeData, brandColor, animationDelay: 0 } })
     if (fcfData.length > 0)
       t.push({ label: 'Free Cash Flow', shortLabel: 'FCF', type: 'single', config: { title: 'Free Cash Flow', symbol, companyName, logo, data: fcfData, brandColor, animationDelay: 0 } })
-    if (peRatioData.length > 0)
-      t.push({ label: 'P/E Ratio (TTM)', shortLabel: 'P/E', type: 'single', config: { title: 'P/E Ratio (TTM)', symbol, companyName, logo, data: peRatioData, type: 'line', brandColor, valueFormatter: (v: number) => `${v.toFixed(1)}x`, animationDelay: 0 } })
     if (ttmEpsData.length > 0)
       t.push({ label: 'TTM Earnings Per Share', shortLabel: 'TTM EPS', type: 'single', config: { title: 'TTM Earnings Per Share', symbol, companyName, logo, data: ttmEpsData, type: 'line', brandColor, valueFormatter: (v: number) => `$${v.toFixed(2)}`, animationDelay: 0 } })
     if (marginsData.length > 3)
