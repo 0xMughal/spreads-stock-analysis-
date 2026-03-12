@@ -123,10 +123,18 @@ const TAG_MAP: Record<string, string[]> = {
   'cruise': ['CCL', 'RCL', 'NCLH'],
   'vacation': ['BKNG', 'ABNB', 'EXPE', 'MAR', 'HLT', 'CCL', 'RCL', 'DIS'],
 
-  // Space
-  'space': ['BA', 'LMT', 'NOC', 'RTX', 'RKLB', 'LUNR', 'ASTS', 'RDW', 'BKSY', 'MNTS'],
-  'rocket': ['BA', 'LMT', 'RKLB', 'LUNR', 'RDW'],
-  'satellite': ['ASTS', 'BKSY', 'VSAT', 'GSAT'],
+  // Space & Aerospace
+  'space': ['RKLB', 'ASTS', 'LUNR', 'RDW', 'SPCE', 'BKSY', 'MNTS', 'BA', 'LMT', 'NOC', 'RTX', 'KTOS', 'LDOS', 'SARO'],
+  'spacex': ['RKLB', 'ASTS', 'LUNR', 'RDW', 'SPCE', 'BKSY', 'BA'],
+  'rocket': ['RKLB', 'RDW', 'LUNR', 'BA', 'LMT', 'NOC'],
+  'satellite': ['ASTS', 'BKSY', 'VSAT', 'GSAT', 'SARO'],
+  'orbit': ['RKLB', 'ASTS', 'LUNR', 'RDW', 'SPCE', 'BKSY'],
+  'launch': ['RKLB', 'RDW', 'LUNR', 'BA', 'LMT'],
+  'lunar': ['LUNR', 'RKLB'],
+  'moon': ['LUNR', 'RKLB'],
+  'mars': ['RKLB', 'BA', 'LMT'],
+  'ipo spacex': ['RKLB', 'ASTS', 'LUNR', 'RDW', 'SPCE', 'BKSY'],
+  'drone': ['KTOS', 'AVAV', 'JOBY', 'RKLB'],
 
   // Telecom
   'telecom': ['T', 'VZ', 'TMUS', 'CMCSA', 'CHTR', 'VOD.UK', 'BT.UK', 'DTE.EU'],
