@@ -606,8 +606,8 @@ interface ChartTab {
   multiConfig?: MultiChartConfig
 }
 
-function FundamentalsSection({ data, symbol, companyName, logo, brandColor }: {
-  data: FundamentalsData; symbol: string; companyName: string; logo?: string; brandColor: string
+function FundamentalsSection({ data, symbol, companyName, logo, brandColor, currentPrice }: {
+  data: FundamentalsData; symbol: string; companyName: string; logo?: string; brandColor: string; currentPrice?: number
 }) {
   const [mobileTab, setMobileTab] = useState(0)
 
@@ -624,6 +624,73 @@ function FundamentalsSection({ data, symbol, companyName, logo, brandColor }: {
   const epsData = useMemo(() => mkData('eps'), [mkData])
   const netIncomeData = useMemo(() => mkData('netIncome'), [mkData])
   const fcfData = useMemo(() => mkData('freeCashFlow'), [mkData])
+
+  // TTM EPS (trailing 4 quarters) at each quarter point
+  const ttmEpsData = useMemo(() => {
+    const withEps = quarters.filter(q => q.eps != null)
+    if (withEps.length < 4) return []
+    const result: Array<{ quarter: string; value: number }> = []
+    for (let i = 3; i < withEps.length; i++) {
+      const ttm = (withEps[i].eps || 0) + (withEps[i - 1].eps || 0) + (withEps[i - 2].eps || 0) + (withEps[i - 3].eps || 0)
+      result.push({ quarter: formatQuarterLabel(withEps[i].date), value: parseFloat(ttm.toFixed(2)) })
+    }
+    return result
+  }, [quarters])
+
+  // P/E Ratio over time (using current price / TTM EPS at each quarter)
+  const peRatioData = useMemo(() => {
+    if (!currentPrice || currentPrice <= 0 || ttmEpsData.length === 0) return []
+    // We only know the current price, so show the latest P/E as a reference
+    // For historical, we use TTM EPS to show how P/E would look at today's price
+    return ttmEpsData
+      .filter(d => d.value > 0) // P/E only meaningful for positive earnings
+      .map(d => ({
+        quarter: d.quarter,
+        value: parseFloat((currentPrice / d.value).toFixed(1)),
+      }))
+  }, [currentPrice, ttmEpsData])
+
+  // Gross Margin % per quarter
+  const grossMarginData = useMemo(() => {
+    return quarters
+      .filter(q => q.grossProfit != null && q.revenue != null && q.revenue > 0)
+      .map(q => ({
+        quarter: formatQuarterLabel(q.date),
+        value: parseFloat(((q.grossProfit! / q.revenue!) * 100).toFixed(1)),
+      }))
+  }, [quarters])
+
+  // Operating Margin % per quarter
+  const operatingMarginData = useMemo(() => {
+    return quarters
+      .filter(q => q.operatingIncome != null && q.revenue != null && q.revenue > 0)
+      .map(q => ({
+        quarter: formatQuarterLabel(q.date),
+        value: parseFloat(((q.operatingIncome! / q.revenue!) * 100).toFixed(1)),
+      }))
+  }, [quarters])
+
+  // Net Margin % per quarter
+  const netMarginData = useMemo(() => {
+    return quarters
+      .filter(q => q.netIncome != null && q.revenue != null && q.revenue > 0)
+      .map(q => ({
+        quarter: formatQuarterLabel(q.date),
+        value: parseFloat(((q.netIncome! / q.revenue!) * 100).toFixed(1)),
+      }))
+  }, [quarters])
+
+  // Margins multi-chart
+  const marginsData = useMemo(() => {
+    return quarters
+      .filter(q => q.revenue != null && q.revenue > 0 && (q.grossProfit != null || q.operatingIncome != null || q.netIncome != null))
+      .map(q => ({
+        quarter: formatQuarterLabel(q.date),
+        gross: q.grossProfit != null ? parseFloat(((q.grossProfit / q.revenue!) * 100).toFixed(1)) : 0,
+        operating: q.operatingIncome != null ? parseFloat(((q.operatingIncome / q.revenue!) * 100).toFixed(1)) : 0,
+        net: q.netIncome != null ? parseFloat(((q.netIncome / q.revenue!) * 100).toFixed(1)) : 0,
+      }))
+  }, [quarters])
 
   const balanceSheetData = useMemo(() =>
     quarters.filter(q => q.totalAssets != null || q.totalLiabilities != null).map(q => ({
@@ -646,6 +713,22 @@ function FundamentalsSection({ data, symbol, companyName, logo, brandColor }: {
       t.push({ label: 'Net Income', shortLabel: 'Net Income', type: 'single', config: { title: 'Net Income', symbol, companyName, logo, data: netIncomeData, brandColor, animationDelay: 0 } })
     if (fcfData.length > 0)
       t.push({ label: 'Free Cash Flow', shortLabel: 'FCF', type: 'single', config: { title: 'Free Cash Flow', symbol, companyName, logo, data: fcfData, brandColor, animationDelay: 0 } })
+    if (peRatioData.length > 0)
+      t.push({ label: 'P/E Ratio (TTM)', shortLabel: 'P/E', type: 'single', config: { title: 'P/E Ratio (TTM)', symbol, companyName, logo, data: peRatioData, type: 'line', brandColor, valueFormatter: (v: number) => `${v.toFixed(1)}x`, animationDelay: 0 } })
+    if (ttmEpsData.length > 0)
+      t.push({ label: 'TTM Earnings Per Share', shortLabel: 'TTM EPS', type: 'single', config: { title: 'TTM Earnings Per Share', symbol, companyName, logo, data: ttmEpsData, type: 'line', brandColor, valueFormatter: (v: number) => `$${v.toFixed(2)}`, animationDelay: 0 } })
+    if (marginsData.length > 3)
+      t.push({
+        label: 'Profit Margins', shortLabel: 'Margins', type: 'multi',
+        multiConfig: {
+          title: 'Profit Margins (%)', symbol, companyName, logo, data: marginsData,
+          series: [
+            { key: 'gross', label: 'Gross', color: '#3b82f6' },
+            { key: 'operating', label: 'Operating', color: '#f59e0b' },
+            { key: 'net', label: 'Net', color: S.accent },
+          ],
+        },
+      })
     if (balanceSheetData.length > 0)
       t.push({
         label: 'Assets vs Liabilities', shortLabel: 'Balance Sheet', type: 'multi',
@@ -670,7 +753,7 @@ function FundamentalsSection({ data, symbol, companyName, logo, brandColor }: {
         },
       })
     return t
-  }, [revenueData, epsData, netIncomeData, fcfData, balanceSheetData, debtCashData, symbol, companyName, logo, brandColor])
+  }, [revenueData, epsData, netIncomeData, fcfData, peRatioData, ttmEpsData, marginsData, balanceSheetData, debtCashData, symbol, companyName, logo, brandColor])
 
   if (tabs.length === 0) return null
 
@@ -681,23 +764,17 @@ function FundamentalsSection({ data, symbol, companyName, logo, brandColor }: {
     <div className="space-y-6">
       <h2 className="text-xl font-bold" style={{ color: S.text }}>Fundamentals</h2>
 
-      {/* ─── Desktop: Grid layout (unchanged) ─── */}
-      <div className="hidden lg:block space-y-6">
+      {/* ─── Desktop: Grid layout ─── */}
+      <div className="hidden lg:block">
         <div className="grid grid-cols-2 gap-6">
-          {tabs.filter(t => t.type === 'single').map((t, i) => (
-            <ExpandableChart key={i} config={{ ...t.config!, animationDelay: i * 150 }} height={chartHeight} />
-          ))}
+          {tabs.map((t, i) =>
+            t.type === 'single' ? (
+              <ExpandableChart key={i} config={{ ...t.config!, animationDelay: i * 150 }} height={chartHeight} />
+            ) : (
+              <ExpandableMultiChart key={i} config={{ ...t.multiConfig!, animationDelay: i * 150 }} height={chartHeight} />
+            )
+          )}
         </div>
-        {tabs.some(t => t.type === 'multi') && (
-          <>
-            <h2 className="text-xl font-bold mt-4" style={{ color: S.text }}>Balance Sheet</h2>
-            <div className="grid grid-cols-2 gap-6">
-              {tabs.filter(t => t.type === 'multi').map((t, i) => (
-                <ExpandableMultiChart key={i} config={{ ...t.multiConfig!, animationDelay: 600 + i * 150 }} height={chartHeight} />
-              ))}
-            </div>
-          </>
-        )}
       </div>
 
       {/* ─── Mobile: Single chart with tab bar ─── */}
@@ -1126,6 +1203,7 @@ export default function StockDetailPage() {
             companyName={stock.name}
             logo={logoUrl}
             brandColor={brandColor}
+            currentPrice={stock.price}
           />
         )}
 
