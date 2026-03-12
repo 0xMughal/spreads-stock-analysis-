@@ -65,6 +65,17 @@ const DOMAIN_MAP: Record<string, string> = {
   'RDDT': 'reddit.com', 'SNAP': 'snap.com', 'PINS': 'pinterest.com',
   'MSTR': 'microstrategy.com', 'SMCI': 'supermicro.com',
   'APP': 'applovin.com', 'MRVL': 'marvell.com',
+  // ETFs & Index funds
+  'SPY': 'ssga.com', 'QQQ': 'invesco.com', 'TQQQ': 'proshares.com',
+  'VTI': 'vanguard.com', 'VT': 'vanguard.com', 'GLD': 'ssga.com',
+  'TBLL': 'jpmorgan.com', 'IEMG': 'ishares.com',
+  // MicroStrategy preferred
+  'STRK': 'microstrategy.com', 'STRF': 'microstrategy.com',
+  // Additional Spreads assets
+  'BRK-B': 'berkshirehathaway.com', 'BRK-A': 'berkshirehathaway.com',
+  'NVO': 'novonordisk.com', 'AZN': 'astrazeneca.com',
+  'LIN': 'linde.com', 'DHR': 'danaher.com',
+  'CRCL': 'circle.com', 'GME': 'gamestop.com',
 }
 
 function getClearbitUrl(symbol: string, name?: string): string | null {
