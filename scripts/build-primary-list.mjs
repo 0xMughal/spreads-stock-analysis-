@@ -100,6 +100,11 @@ const EXTRA_SECTORS = {
   'WSM': 'Consumer Discretionary', 'WTKWY': 'Technology', 'WWD': 'Industrials',
   'XPO': 'Industrials', 'YUMC': 'Consumer Discretionary', 'ZM': 'Technology',
   'ZS': 'Technology', 'ZTO': 'Industrials', 'BF-B': 'Consumer Staples', 'BRK-B': 'Financials',
+  // ETFs & Index Funds (Spreads assets)
+  'SPY': 'ETF', 'QQQ': 'ETF', 'TQQQ': 'ETF', 'VTI': 'ETF', 'VT': 'ETF',
+  'GLD': 'ETF', 'TBLL': 'ETF', 'IEMG': 'ETF',
+  // Additional Spreads assets
+  'STRK': 'Financials', 'STRF': 'Financials', 'CRCL': 'Financials', 'GME': 'Consumer Discretionary',
   'AIR.EU': 'Industrials', 'ALV.EU': 'Financials', 'ASML.EU': 'Technology',
   'AZN.UK': 'Healthcare', 'BABA.HK': 'Consumer Discretionary', 'BN.CA': 'Financials',
   'CSL.AU': 'Healthcare', 'KEYN.JP': 'Technology', 'MEIT.HK': 'Technology',
