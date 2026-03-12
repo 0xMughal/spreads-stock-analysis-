@@ -6,6 +6,7 @@ import Image from 'next/image'
 import StockLogo from '../components/StockLogo'
 import { Stock } from '@/lib/types'
 import { useTheme } from '../context/ThemeContext'
+import { INDEXES } from '@/lib/data/indexes'
 
 // --- Metric definitions ---
 interface MetricDef {
@@ -40,6 +41,7 @@ const METRICS: MetricDef[] = [
   { key: 'avgVolume', label: 'Avg Volume', category: 'volume', type: 'number', getValue: (s) => s.avgVolume, format: formatLargeNum },
   { key: 'relVolume', label: 'Relative Volume', category: 'volume', type: 'number', getValue: (s) => s.avgVolume > 0 ? s.volume / s.avgVolume : null, format: (v) => `${v.toFixed(2)}x` },
   // Classification
+  { key: 'market', label: 'Market', category: 'classification', type: 'select', getValue: (s) => SPREADS_TICKERS.has(s.symbol) ? 'Spreads' : 'Other', options: ['Spreads', 'Other'] },
   { key: 'sector', label: 'Sector', category: 'classification', type: 'select', getValue: (s) => s.sector },
   { key: 'country', label: 'Country', category: 'classification', type: 'select', getValue: (s) => s.country },
   { key: 'exchange', label: 'Exchange', category: 'classification', type: 'select', getValue: (s) => s.exchange },
@@ -87,9 +89,15 @@ const AI_TECH_TICKERS = new Set([
   'FTNT', 'ADBE', 'INTU', 'SHOP', 'WDAY',
 ])
 
-type PresetKey = 'undervalued' | 'highDiv' | 'aiTech' | 'oversold' | 'megaCaps' | 'highVolume' | null
+const SPREADS_TICKERS = INDEXES.find((idx) => idx.key === 'spreads')?.tickers || new Set<string>()
+
+type PresetKey = 'spreads' | 'undervalued' | 'highDiv' | 'aiTech' | 'oversold' | 'megaCaps' | 'highVolume' | null
 
 const PRESETS: { key: PresetKey; label: string; filters: Omit<ActiveFilter, 'id'>[] }[] = [
+  {
+    key: 'spreads', label: 'Spreads',
+    filters: [{ metricKey: 'market', op: 'is', value: 'Spreads' }],
+  },
   {
     key: 'undervalued', label: 'Undervalued Large Caps',
     filters: [
@@ -187,6 +195,10 @@ export default function ScreenerPage() {
   const selectOptions = useMemo(() => {
     const map: Record<string, string[]> = {}
     METRICS.filter((m) => m.type === 'select').forEach((m) => {
+      if (m.options) {
+        map[m.key] = m.options
+        return
+      }
       const set = new Set<string>()
       stocks.forEach((s) => {
         const v = m.getValue(s)

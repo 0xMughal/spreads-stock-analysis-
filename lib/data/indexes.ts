@@ -1,7 +1,7 @@
 import { SP500_STOCKS } from './sp500-full'
 import { NASDAQ100_STOCKS } from './nasdaq100'
 
-export type IndexKey = 'all' | 'sp500' | 'nasdaq100' | 'ftse100' | 'nikkei225' | 'dax40' | 'cac40' | 'kospi' | 'asx50' | 'tsx60'
+export type IndexKey = 'all' | 'spreads' | 'sp500' | 'nasdaq100' | 'ftse100' | 'nikkei225' | 'dax40' | 'cac40' | 'kospi' | 'asx50' | 'tsx60'
 
 export interface IndexDef {
   key: IndexKey
@@ -11,6 +11,16 @@ export interface IndexDef {
 
 const SP500_SET = new Set(SP500_STOCKS.map(s => s.symbol))
 const NASDAQ100_SET = new Set(NASDAQ100_STOCKS.map(s => s.symbol))
+
+// Spreads — 59 tokenized assets available on Ondo Global Markets
+const SPREADS_SET = new Set([
+  'META', 'JNJ', 'V', 'MRK', 'STRK', 'BRK-B', 'ABT', 'PLTR', 'XOM', 'LLY',
+  'ABBV', 'PEP', 'MSTR', 'TQQQ', 'NVDA', 'UNH', 'MA', 'APP', 'GLD', 'AMD',
+  'PG', 'KO', 'HON', 'GOOGL', 'PFE', 'WMT', 'INTC', 'QQQ', 'VTI', 'MSFT',
+  'AMZN', 'AVGO', 'TSLA', 'JPM', 'CVX', 'CSCO', 'SPY', 'AAPL', 'HOOD',
+  'VT', 'NVO', 'TBLL', 'ORCL', 'STRF', 'MCD', 'NFLX', 'GS', 'CMCSA', 'BAC',
+  'MRVL', 'IBM', 'CRWD', 'IEMG', 'LIN', 'CRM', 'DHR', 'AZN', 'GME',
+])
 
 // FTSE 100 — top UK stocks
 const FTSE100_SET = new Set([
@@ -77,6 +87,7 @@ const TSX60_SET = new Set([
 
 export const INDEXES: IndexDef[] = [
   { key: 'all', label: 'All', tickers: new Set() },
+  { key: 'spreads', label: 'Spreads', tickers: SPREADS_SET },
   { key: 'sp500', label: 'S&P 500', tickers: SP500_SET },
   { key: 'nasdaq100', label: 'Nasdaq 100', tickers: NASDAQ100_SET },
   { key: 'ftse100', label: 'FTSE 100', tickers: FTSE100_SET },
