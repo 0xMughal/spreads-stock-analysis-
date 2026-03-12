@@ -10,6 +10,7 @@ import { useTheme } from '@/app/context/ThemeContext'
 import StockLogo from '@/app/components/StockLogo'
 import WatchlistButton from '@/app/components/WatchlistButton'
 import { getBrandColor } from '@/lib/data/brand-colors'
+import { getCompanyDescription } from '@/lib/data/company-descriptions'
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis,
   Tooltip, ResponsiveContainer, TooltipProps, Cell
@@ -954,6 +955,109 @@ function InsiderActivitySection({ symbol }: { symbol: string }) {
   )
 }
 
+// ─── Company Overview + News ───
+
+interface NewsArticle {
+  headline: string
+  summary: string
+  source: string
+  url: string
+  datetime: number
+  image: string
+}
+
+function CompanyOverviewSection({ symbol, name, sector, brandColor }: {
+  symbol: string; name: string; sector: string; brandColor: string
+}) {
+  const [news, setNews] = useState<NewsArticle[]>([])
+  const [newsLoading, setNewsLoading] = useState(true)
+
+  const description = getCompanyDescription(symbol)
+
+  useEffect(() => {
+    fetch(`/api/news/${symbol}`)
+      .then(r => r.json())
+      .then(data => setNews(data.articles || []))
+      .catch(() => setNews([]))
+      .finally(() => setNewsLoading(false))
+  }, [symbol])
+
+  const formatNewsDate = (ts: number): string => {
+    const d = new Date(ts * 1000)
+    const now = new Date()
+    const diffH = Math.floor((now.getTime() - d.getTime()) / (1000 * 60 * 60))
+    if (diffH < 1) return 'Just now'
+    if (diffH < 24) return `${diffH}h ago`
+    const diffD = Math.floor(diffH / 24)
+    if (diffD === 1) return 'Yesterday'
+    if (diffD < 7) return `${diffD}d ago`
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  }
+
+  return (
+    <div className="mb-8 grid grid-cols-1 lg:grid-cols-2 gap-6" style={{ animation: 'fadeUp 0.4s ease-out 200ms both' }}>
+      {/* About */}
+      <div className="rounded-2xl p-6" style={{ backgroundColor: S.bg }}>
+        <h3 className="text-base font-bold mb-3" style={{ color: S.text }}>About {name.split(/[\s,]+/).slice(0, 3).join(' ')}</h3>
+        {description ? (
+          <p className="text-sm leading-relaxed" style={{ color: S.textMuted }}>{description}</p>
+        ) : (
+          <p className="text-sm leading-relaxed" style={{ color: S.textMuted }}>
+            {name} operates in the {sector} sector. Detailed company information will be available soon.
+          </p>
+        )}
+        <div className="flex items-center gap-3 mt-4 pt-3" style={{ borderTop: `1px solid ${S.grid}` }}>
+          <span className="text-xs font-semibold px-2.5 py-1 rounded-full" style={{ backgroundColor: `${brandColor}15`, color: brandColor }}>
+            {sector}
+          </span>
+          <span className="text-[11px]" style={{ color: S.textDim }}>${symbol}</span>
+        </div>
+      </div>
+
+      {/* Latest News */}
+      <div className="rounded-2xl p-6" style={{ backgroundColor: S.bg }}>
+        <h3 className="text-base font-bold mb-3" style={{ color: S.text }}>Latest News</h3>
+        {newsLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <div className="w-5 h-5 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: S.greenDim, borderTopColor: S.green }} />
+          </div>
+        ) : news.length === 0 ? (
+          <p className="text-sm py-4" style={{ color: S.textDim }}>No recent news available</p>
+        ) : (
+          <div className="space-y-0 divide-y" style={{ borderColor: S.grid }}>
+            {news.slice(0, 5).map((article, i) => (
+              <a
+                key={i}
+                href={article.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block py-3 first:pt-0 group"
+              >
+                <div className="flex gap-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium leading-snug line-clamp-2 group-hover:opacity-70 transition-opacity" style={{ color: S.text }}>
+                      {article.headline}
+                    </p>
+                    <div className="flex items-center gap-2 mt-1.5">
+                      <span className="text-[10px] font-semibold uppercase" style={{ color: brandColor }}>{article.source}</span>
+                      <span className="text-[10px]" style={{ color: S.textDim }}>{formatNewsDate(article.datetime)}</span>
+                    </div>
+                  </div>
+                  {article.image && (
+                    <div className="w-16 h-16 rounded-lg overflow-hidden shrink-0 hidden sm:block">
+                      <img src={article.image} alt="" className="w-full h-full object-cover" />
+                    </div>
+                  )}
+                </div>
+              </a>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ─── Main Page ───
 
 export default function StockDetailPage() {
@@ -1162,38 +1266,8 @@ export default function StockDetailPage() {
           </div>
         </div>
 
-        {/* ─── Trading Range ─── */}
-        {stock.price > 0 && (stock.dayHigh > 0 || stock.yearHigh > 0) && (
-          <div className="rounded-2xl p-6 mb-8" style={{ backgroundColor: S.bg, animation: 'fadeUp 0.4s ease-out 200ms both' }}>
-            <h3 className="text-base font-bold mb-4" style={{ color: S.text }}>Trading Range</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              {stock.dayHigh > 0 && (
-                <div>
-                  <div className="flex justify-between text-xs mb-2" style={{ color: S.textMuted }}>
-                    <span>{formatCurrency(stock.dayLow)}</span>
-                    <span className="font-medium">Day Range</span>
-                    <span>{formatCurrency(stock.dayHigh)}</span>
-                  </div>
-                  <div className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: S.grid }}>
-                    <div className="h-full rounded-full transition-all duration-700" style={{ backgroundColor: brandColor, width: `${Math.min(100, Math.max(0, ((stock.price - stock.dayLow) / (stock.dayHigh - stock.dayLow)) * 100))}%` }} />
-                  </div>
-                </div>
-              )}
-              {stock.yearHigh > 0 && (
-                <div>
-                  <div className="flex justify-between text-xs mb-2" style={{ color: S.textMuted }}>
-                    <span>{formatCurrency(stock.yearLow)}</span>
-                    <span className="font-medium">52-Week Range</span>
-                    <span>{formatCurrency(stock.yearHigh)}</span>
-                  </div>
-                  <div className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: S.grid }}>
-                    <div className="h-full rounded-full transition-all duration-700" style={{ backgroundColor: S.cream, width: `${Math.min(100, Math.max(0, ((stock.price - stock.yearLow) / (stock.yearHigh - stock.yearLow)) * 100))}%` }} />
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
+        {/* ─── Company Overview + News ─── */}
+        <CompanyOverviewSection symbol={stock.symbol} name={stock.name} sector={stock.sector} brandColor={brandColor} />
 
         {/* ─── Fundamentals Charts ─── */}
         {fundamentals && (

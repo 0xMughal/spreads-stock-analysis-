@@ -28,6 +28,7 @@ const publicRoutes = [
   "/api/portfolio",
   "/api/watchlist",
   "/api/insider-trades",
+  "/api/news",
   "/watchlist",
   "/screener",
   "/insiders",
