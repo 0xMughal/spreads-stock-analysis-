@@ -19,7 +19,7 @@ const SPREADS_SET = new Set([
   'PG', 'KO', 'HON', 'GOOGL', 'PFE', 'WMT', 'INTC', 'QQQ', 'VTI', 'MSFT',
   'AMZN', 'AVGO', 'TSLA', 'JPM', 'CVX', 'CSCO', 'SPY', 'AAPL', 'HOOD',
   'VT', 'NVO', 'TBLL', 'ORCL', 'STRF', 'MCD', 'NFLX', 'GS', 'CMCSA', 'BAC',
-  'MRVL', 'IBM', 'CRWD', 'IEMG', 'LIN', 'CRM', 'DHR', 'AZN', 'GME',
+  'MRVL', 'IBM', 'CRWD', 'IEMG', 'LIN', 'CRM', 'DHR', 'AZN', 'GME', 'CRCL',
 ])
 
 // FTSE 100 — top UK stocks
