@@ -284,41 +284,29 @@ export default function Home() {
               )}
             </div>
 
-            <span className="text-[11px] sm:text-xs hidden sm:block shrink-0" style={{ color: 'var(--text-muted)' }}>
-              {filteredStocks.length === stocks.length
-                ? `${stocks.length.toLocaleString()} stocks`
-                : `${filteredStocks.length.toLocaleString()} / ${stocks.length.toLocaleString()}`}
-            </span>
-
-            <button
-              onClick={() => router.push('/watchlist')}
-              className="px-2.5 py-1 rounded-lg text-[11px] sm:text-xs font-medium transition-all duration-150 hidden sm:flex items-center gap-1.5 shrink-0"
-              style={{
-                backgroundColor: 'var(--bg-tertiary)',
-                color: 'var(--text-secondary)',
-                border: '1px solid var(--border-color)',
-              }}
-            >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-              </svg>
-              Watchlist
-            </button>
-
-            <button
-              onClick={() => router.push('/screener')}
-              className="px-2.5 py-1 rounded-lg text-[11px] sm:text-xs font-medium transition-all duration-150 hidden sm:flex items-center gap-1.5 shrink-0"
-              style={{
-                backgroundColor: 'var(--bg-tertiary)',
-                color: 'var(--text-secondary)',
-                border: '1px solid var(--border-color)',
-              }}
-            >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z" />
-              </svg>
-              Screener
-            </button>
+            <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+              {[
+                { href: '/screener', label: 'Screener', icon: 'M22 3H2l8 9.46V19l4 2v-8.54L22 3z' },
+                { href: '/insiders', label: 'Insiders', icon: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75' },
+                { href: '/watchlist', label: 'Watchlist', icon: 'M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.77 5.82 21 7 14.14l-5-4.87 6.91-1.01L12 2' },
+              ].map((nav) => (
+                <button
+                  key={nav.href}
+                  onClick={() => router.push(nav.href)}
+                  className="px-2 sm:px-2.5 py-1 rounded-lg text-[10px] sm:text-[11px] font-medium transition-all duration-150 flex items-center gap-1 sm:gap-1.5 shrink-0"
+                  style={{
+                    backgroundColor: 'var(--bg-tertiary)',
+                    color: 'var(--text-secondary)',
+                    border: '1px solid var(--border-color)',
+                  }}
+                >
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d={nav.icon} />
+                  </svg>
+                  <span className="hidden sm:inline">{nav.label}</span>
+                </button>
+              ))}
+            </div>
 
             <button
               onClick={toggleTheme}
