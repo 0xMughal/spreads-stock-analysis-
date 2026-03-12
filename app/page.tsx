@@ -89,7 +89,7 @@ export default function Home() {
   const [search, setSearch] = useState('')
   const [activeCategory, setActiveCategory] = useState<CategoryKey>('all')
   const [activeRegion, setActiveRegion] = useState<RegionKey>('all')
-  const [activeIndex, setActiveIndex] = useState<IndexKey>('all')
+  const [activeIndex, setActiveIndex] = useState<IndexKey>('spreads')
   const [page, setPage] = useState(1)
   const [filtersOpen, setFiltersOpen] = useState(false)
   const searchRef = useRef<HTMLInputElement>(null)
