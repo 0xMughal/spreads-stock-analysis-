@@ -32,6 +32,7 @@ const publicRoutes = [
   "/watchlist",
   "/screener",
   "/insiders",
+  "/compare",
   "/data",
 ]
 

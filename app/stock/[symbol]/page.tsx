@@ -11,6 +11,7 @@ import StockLogo from '@/app/components/StockLogo'
 import WatchlistButton from '@/app/components/WatchlistButton'
 import { getBrandColor } from '@/lib/data/brand-colors'
 import { getCompanyDescription } from '@/lib/data/company-descriptions'
+import { getSimilarTickers } from '@/lib/data/search-tags'
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis,
   Tooltip, ResponsiveContainer, TooltipProps, Cell
@@ -818,6 +819,62 @@ function FundamentalsSection({ data, symbol, companyName, logo, brandColor, curr
   )
 }
 
+// ─── Similar Stocks Section ───
+
+function SimilarStocksSection({ symbol, allStocks }: { symbol: string; allStocks: Stock[] }) {
+  const similarTickers = useMemo(() => getSimilarTickers(symbol, 12), [symbol])
+  const similarStocks = useMemo(() => {
+    if (!allStocks.length) return []
+    return similarTickers
+      .map(t => allStocks.find(s => s.symbol === t))
+      .filter((s): s is Stock => s != null)
+  }, [similarTickers, allStocks])
+
+  if (similarStocks.length === 0) return null
+
+  return (
+    <div className="mt-8">
+      <h2 className="text-lg font-bold mb-4" style={{ color: 'var(--text-primary)' }}>Similar Stocks</h2>
+      <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+        {similarStocks.map(s => {
+          const pos = (s.changesPercentage ?? 0) >= 0
+          return (
+            <Link
+              key={s.symbol}
+              href={`/stock/${s.symbol}`}
+              className="flex-shrink-0 rounded-xl p-3 hover:opacity-80 transition-opacity"
+              style={{
+                backgroundColor: 'var(--card-bg)',
+                border: '1px solid var(--card-border)',
+                minWidth: 140,
+              }}
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <StockLogo
+                  symbol={s.symbol}
+                  name={s.name}
+                  logo={`https://static2.finnhub.io/file/publicdatany/finnhubimage/stock_logo/${s.symbol}.png`}
+                  size="sm"
+                />
+                <div>
+                  <div className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>{s.symbol}</div>
+                  <div className="text-[10px] truncate max-w-[80px]" style={{ color: 'var(--text-muted)' }}>{s.name}</div>
+                </div>
+              </div>
+              <div className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                ${s.price?.toFixed(2)}
+              </div>
+              <div className="text-xs font-medium" style={{ color: pos ? '#22c55e' : '#ef4444' }}>
+                {pos ? '+' : ''}{s.changesPercentage?.toFixed(2)}%
+              </div>
+            </Link>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 // ─── Insider Activity Section ───
 
 function InsiderActivitySection({ symbol }: { symbol: string }) {
@@ -1071,6 +1128,7 @@ export default function StockDetailPage() {
   const symbol = typeof params.symbol === 'string' ? params.symbol.toUpperCase() : ''
 
   const [stock, setStock] = useState<Stock | null>(null)
+  const [allStocks, setAllStocks] = useState<Stock[]>([])
   const [fundamentals, setFundamentals] = useState<FundamentalsData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -1093,7 +1151,9 @@ export default function StockDetailPage() {
     fetch('/api/stocks')
       .then(r => r.json())
       .then(result => {
-        const found = (result.data || []).find((s: Stock) => s.symbol === symbol)
+        const data = result.data || []
+        setAllStocks(data)
+        const found = data.find((s: Stock) => s.symbol === symbol)
         if (found) setStock(found)
         else setError('Stock not found')
       })
@@ -1287,6 +1347,9 @@ export default function StockDetailPage() {
 
         {/* ─── Insider Activity ─── */}
         <InsiderActivitySection symbol={stock.symbol} />
+
+        {/* ─── Similar Stocks ─── */}
+        <SimilarStocksSection symbol={stock.symbol} allStocks={allStocks} />
 
         {/* Back */}
         <div className="mt-10 mb-6 flex justify-center">

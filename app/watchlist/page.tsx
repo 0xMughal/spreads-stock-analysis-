@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import Image from 'next/image'
@@ -11,6 +11,7 @@ import { useWatchlist } from '@/app/hooks/useWatchlist'
 import { useTheme } from '@/app/context/ThemeContext'
 import { Stock } from '@/lib/types'
 import { formatCurrency, formatLargeCurrency, formatPercent } from '@/lib/utils'
+import html2canvas from 'html2canvas'
 
 export default function WatchlistPage() {
   const router = useRouter()
@@ -21,6 +22,45 @@ export default function WatchlistPage() {
   const [stocksLoading, setStocksLoading] = useState(true)
 
   const isLoggedIn = status === 'authenticated'
+  const shareCardRef = useRef<HTMLDivElement>(null)
+  const [sharing, setSharing] = useState(false)
+  const [shareSuccess, setShareSuccess] = useState(false)
+
+  const handleShareCard = useCallback(async () => {
+    if (!shareCardRef.current || sharing) return
+    setSharing(true)
+    try {
+      const canvas = await html2canvas(shareCardRef.current, {
+        scale: 3,
+        backgroundColor: '#0b1a12',
+        useCORS: true,
+        logging: false,
+      })
+      canvas.toBlob(async (blob) => {
+        if (!blob) { setSharing(false); return }
+        try {
+          await navigator.clipboard.write([
+            new ClipboardItem({ 'image/png': blob }),
+          ])
+          setShareSuccess(true)
+          setTimeout(() => setShareSuccess(false), 2000)
+        } catch {
+          // Fallback: download
+          const url = URL.createObjectURL(blob)
+          const a = document.createElement('a')
+          a.href = url
+          a.download = `spreads-watchlist-${Date.now()}.png`
+          a.click()
+          URL.revokeObjectURL(url)
+          setShareSuccess(true)
+          setTimeout(() => setShareSuccess(false), 2000)
+        }
+        setSharing(false)
+      }, 'image/png')
+    } catch {
+      setSharing(false)
+    }
+  }, [sharing])
 
   useEffect(() => {
     fetch('/api/stocks')
@@ -76,6 +116,24 @@ export default function WatchlistPage() {
             <span className="text-[11px] sm:text-xs shrink-0" style={{ color: 'var(--text-muted)' }}>
               {watchlistedStocks.length} {watchlistedStocks.length === 1 ? 'stock' : 'stocks'}
             </span>
+
+            {watchlistedStocks.length > 0 && (
+              <button
+                onClick={handleShareCard}
+                disabled={sharing}
+                className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors"
+                style={{ backgroundColor: 'var(--bg-tertiary)', color: shareSuccess ? '#22c55e' : 'var(--text-secondary)', border: '1px solid var(--border-color)' }}
+                title="Share watchlist as image"
+              >
+                {sharing ? (
+                  <div className="w-3.5 h-3.5 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: 'var(--text-muted)', borderTopColor: 'var(--accent)' }} />
+                ) : shareSuccess ? (
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
+                ) : (
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+                )}
+              </button>
+            )}
 
             <button
               onClick={toggleTheme}
@@ -241,6 +299,95 @@ export default function WatchlistPage() {
           </div>
         )}
       </main>
+
+      {/* Hidden share card for image export */}
+      {watchlistedStocks.length > 0 && (
+        <div style={{ position: 'absolute', left: '-9999px', top: 0 }}>
+          <div
+            ref={shareCardRef}
+            style={{
+              width: 600,
+              padding: 32,
+              backgroundColor: '#0b1a12',
+              borderRadius: 20,
+              fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+            }}
+          >
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+              <div style={{
+                width: 36, height: 36, borderRadius: 10,
+                backgroundColor: '#1B3A2D',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: '#22c55e', fontWeight: 800, fontSize: 16,
+              }}>
+                S
+              </div>
+              <div>
+                <div style={{ color: '#e8efe9', fontWeight: 700, fontSize: 16 }}>My Watchlist</div>
+                <div style={{ color: '#5e7a66', fontSize: 11 }}>{watchlistedStocks.length} stocks — spreads.markets</div>
+              </div>
+            </div>
+
+            {/* Stock grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
+              {watchlistedStocks.slice(0, 12).map(s => {
+                const pos = (s.changesPercentage ?? 0) >= 0
+                return (
+                  <div
+                    key={s.symbol}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 10,
+                      padding: '10px 12px', borderRadius: 12,
+                      backgroundColor: '#12261a',
+                      border: '1px solid #1e3a2b',
+                    }}
+                  >
+                    <div style={{
+                      width: 28, height: 28, borderRadius: 8,
+                      backgroundColor: '#1a3326',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      color: '#a3b8aa', fontWeight: 700, fontSize: 10,
+                      overflow: 'hidden', flexShrink: 0,
+                    }}>
+                      {s.symbol.slice(0, 2)}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ color: '#e8efe9', fontWeight: 700, fontSize: 12 }}>{s.symbol}</div>
+                      <div style={{ color: '#5e7a66', fontSize: 10, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{s.name}</div>
+                    </div>
+                    <div style={{ textAlign: 'right' as const, flexShrink: 0 }}>
+                      <div style={{ color: '#e8efe9', fontWeight: 600, fontSize: 12 }}>${s.price?.toFixed(2)}</div>
+                      <div style={{ color: pos ? '#22c55e' : '#ef4444', fontWeight: 600, fontSize: 10 }}>
+                        {pos ? '+' : ''}{s.changesPercentage?.toFixed(2)}%
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+            {watchlistedStocks.length > 12 && (
+              <div style={{ color: '#5e7a66', fontSize: 11, textAlign: 'center' as const, marginTop: 12 }}>
+                +{watchlistedStocks.length - 12} more stocks
+              </div>
+            )}
+
+            {/* Footer */}
+            <div style={{
+              marginTop: 20, paddingTop: 16,
+              borderTop: '1px solid #1e3a2b',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            }}>
+              <div style={{ color: '#5e7a66', fontSize: 10 }}>
+                Generated {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+              </div>
+              <div style={{ color: '#22c55e', fontWeight: 700, fontSize: 11 }}>
+                spreads.markets
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Inline keyframes */}
       <style>{`

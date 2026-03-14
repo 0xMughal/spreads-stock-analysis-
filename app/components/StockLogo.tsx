@@ -142,14 +142,23 @@ export default function StockLogo({ symbol, name, logo, size = 'md', className =
   const imgSrc = source === 'clearbit' ? clearbitUrl! : logo
 
   return (
-    <img
-      src={imgSrc}
-      alt={`${symbol} logo`}
-      className={`rounded-2xl object-contain ${className}`}
-      style={{ width: px, height: px, backgroundColor: 'white' }}
-      onError={source === 'primary' ? handlePrimaryError : handleClearbitError}
-      loading="lazy"
-      draggable={false}
-    />
+    <div
+      className={`rounded-2xl overflow-hidden flex-shrink-0 ${className}`}
+      style={{
+        width: px,
+        height: px,
+        backgroundColor: 'var(--logo-bg, white)',
+      }}
+    >
+      <img
+        src={imgSrc}
+        alt={`${symbol} logo`}
+        className="object-contain"
+        style={{ width: px, height: px }}
+        onError={source === 'primary' ? handlePrimaryError : handleClearbitError}
+        loading="lazy"
+        draggable={false}
+      />
+    </div>
   )
 }

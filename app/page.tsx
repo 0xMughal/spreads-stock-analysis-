@@ -287,6 +287,7 @@ export default function Home() {
             <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
               {[
                 { href: '/screener', label: 'Screener', icon: 'M22 3H2l8 9.46V19l4 2v-8.54L22 3z' },
+                { href: '/compare', label: 'Compare', icon: 'M3 3v18h18M7 16V8m4 8V4m4 12v-5m4 5V7' },
                 { href: '/insiders', label: 'Insiders', icon: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75' },
                 { href: '/watchlist', label: 'Watchlist', icon: 'M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.77 5.82 21 7 14.14l-5-4.87 6.91-1.01L12 2' },
               ].map((nav) => (

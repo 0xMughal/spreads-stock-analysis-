@@ -21,6 +21,7 @@
   --card-bg: #ffffff;
   --card-border: #e8eaed;
   --accent: #193427;
+  --logo-bg: #ffffff;
 }
 
 .dark {
@@ -35,6 +36,7 @@
   --border-color: #1e3a2b;
   --card-bg: #12261a;
   --card-border: #1e3a2b;
+  --logo-bg: #1a3326;
   --spreads-green: #22c55e;
   --spreads-green-light: #4ade80;
   --accent: #22c55e;

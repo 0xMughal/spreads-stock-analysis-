@@ -473,3 +473,36 @@ export function getTaggedTickers(query: string): Set<string> {
 
   return matches
 }
+
+/**
+ * Given a stock symbol, returns similar tickers ranked by tag overlap.
+ * Stocks that share more tags with the input are more "similar".
+ */
+export function getSimilarTickers(symbol: string, limit = 10): string[] {
+  const sym = symbol.toUpperCase()
+
+  // Build reverse index: which tags does this symbol appear in?
+  const myTags: string[] = []
+  for (const [tag, tickers] of Object.entries(TAG_MAP)) {
+    if (tickers.includes(sym)) {
+      myTags.push(tag)
+    }
+  }
+
+  if (myTags.length === 0) return []
+
+  // Score every other ticker by how many tags they share
+  const scores = new Map<string, number>()
+  for (const tag of myTags) {
+    for (const ticker of TAG_MAP[tag]) {
+      if (ticker === sym) continue
+      scores.set(ticker, (scores.get(ticker) || 0) + 1)
+    }
+  }
+
+  // Sort by overlap score descending, then alphabetically
+  return Array.from(scores.entries())
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .slice(0, limit)
+    .map(([ticker]) => ticker)
+}
