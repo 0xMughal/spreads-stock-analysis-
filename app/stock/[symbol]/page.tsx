@@ -12,6 +12,7 @@ import WatchlistButton from '@/app/components/WatchlistButton'
 import { getBrandColor } from '@/lib/data/brand-colors'
 import { getCompanyDescription } from '@/lib/data/company-descriptions'
 import { getSimilarTickers } from '@/lib/data/search-tags'
+import { useAlerts } from '@/app/hooks/useAlerts'
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis,
   Tooltip, ResponsiveContainer, TooltipProps, Cell
@@ -1198,6 +1199,11 @@ export default function StockDetailPage() {
 
   const brandColor = useMemo(() => getBrandColor(symbol, stock?.sector), [symbol, stock?.sector])
   const isPositive = (stock?.changesPercentage ?? 0) >= 0
+  const { addAlert } = useAlerts()
+  const [showAlertModal, setShowAlertModal] = useState(false)
+  const [alertPrice, setAlertPrice] = useState('')
+  const [alertDirection, setAlertDirection] = useState<'above' | 'below'>('above')
+  const [alertSet, setAlertSet] = useState(false)
 
   if (loading) {
     return (
@@ -1251,6 +1257,17 @@ export default function StockDetailPage() {
                   <div className="flex items-center gap-2">
                     <h1 className="text-2xl font-bold" style={{ color: S.text }}>{stock.symbol}</h1>
                     <WatchlistButton symbol={stock.symbol} size="md" />
+                    <button
+                      onClick={() => { setAlertPrice(stock.price?.toFixed(2) || ''); setShowAlertModal(true); setAlertSet(false) }}
+                      className="w-7 h-7 rounded-lg flex items-center justify-center hover:opacity-70 transition-opacity"
+                      style={{ backgroundColor: `${S.green}15`, color: S.green }}
+                      title="Set price alert"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                        <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                      </svg>
+                    </button>
                   </div>
                   <p className="text-sm" style={{ color: S.textMuted }}>{stock.name}</p>
                 </div>
@@ -1359,6 +1376,100 @@ export default function StockDetailPage() {
           </Link>
         </div>
       </div>
+
+      {/* ─── Price Alert Modal ─── */}
+      {showAlertModal && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setShowAlertModal(false)}>
+          <div
+            className="rounded-2xl p-5 w-[320px] shadow-2xl"
+            style={{ backgroundColor: 'var(--card-bg)', border: '1px solid var(--card-border)' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>Set Price Alert</h3>
+              <button onClick={() => setShowAlertModal(false)} className="p-1 hover:opacity-60" style={{ color: 'var(--text-muted)' }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12" /></svg>
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2 mb-4">
+              <StockLogo symbol={stock.symbol} name={stock.name} logo={logoUrl} size="sm" />
+              <span className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>{stock.symbol}</span>
+              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Current: ${stock.price?.toFixed(2)}</span>
+            </div>
+
+            {/* Direction toggle */}
+            <div className="flex gap-2 mb-3">
+              {(['above', 'below'] as const).map(dir => (
+                <button
+                  key={dir}
+                  onClick={() => setAlertDirection(dir)}
+                  className="flex-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                  style={{
+                    backgroundColor: alertDirection === dir
+                      ? (dir === 'above' ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)')
+                      : 'var(--bg-tertiary)',
+                    color: alertDirection === dir
+                      ? (dir === 'above' ? '#22c55e' : '#ef4444')
+                      : 'var(--text-muted)',
+                    border: `1px solid ${alertDirection === dir
+                      ? (dir === 'above' ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)')
+                      : 'var(--card-border)'}`,
+                  }}
+                >
+                  {dir === 'above' ? '↑ Above' : '↓ Below'}
+                </button>
+              ))}
+            </div>
+
+            {/* Price input */}
+            <div className="mb-4">
+              <label className="text-[10px] font-medium uppercase tracking-wider block mb-1" style={{ color: 'var(--text-muted)' }}>
+                Target Price
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium" style={{ color: 'var(--text-muted)' }}>$</span>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={alertPrice}
+                  onChange={e => setAlertPrice(e.target.value)}
+                  className="w-full pl-7 pr-3 py-2 rounded-lg text-sm font-semibold outline-none"
+                  style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-primary)', border: '1px solid var(--card-border)' }}
+                  placeholder="0.00"
+                  autoFocus
+                />
+              </div>
+            </div>
+
+            {alertSet ? (
+              <div className="flex items-center justify-center gap-2 py-2 rounded-lg" style={{ backgroundColor: 'rgba(34,197,94,0.1)' }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2.5"><path d="M20 6L9 17l-5-5" /></svg>
+                <span className="text-xs font-semibold" style={{ color: '#22c55e' }}>Alert set!</span>
+              </div>
+            ) : (
+              <button
+                onClick={() => {
+                  const price = parseFloat(alertPrice)
+                  if (!isNaN(price) && price > 0) {
+                    addAlert(stock.symbol, price, alertDirection)
+                    setAlertSet(true)
+                    setTimeout(() => setShowAlertModal(false), 1200)
+                  }
+                }}
+                className="w-full py-2 rounded-lg text-sm font-semibold text-white transition-all hover:opacity-90"
+                style={{ backgroundColor: S.green }}
+              >
+                Set Alert
+              </button>
+            )}
+
+            <p className="text-[10px] mt-3 text-center" style={{ color: 'var(--text-muted)' }}>
+              Alerts check every minute while the app is open.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -10,6 +10,7 @@ import { REGIONS, RegionKey } from '@/lib/data/regions'
 import { INDEXES, IndexKey } from '@/lib/data/indexes'
 import { getTaggedTickers } from '@/lib/data/search-tags'
 import { useTheme } from './context/ThemeContext'
+import NotificationBell from './components/NotificationBell'
 
 type CategoryKey = 'all' | 'tech' | 'healthcare' | 'finance' | 'ai' | 'saas' | 'crypto' | 'energy' | 'consumer' | 'industrial' | 'materials' | 'real-estate' | 'comms' | 'utilities'
 
@@ -308,6 +309,8 @@ export default function Home() {
                 </button>
               ))}
             </div>
+
+            <NotificationBell />
 
             <button
               onClick={toggleTheme}
