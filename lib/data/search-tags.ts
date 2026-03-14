@@ -257,8 +257,161 @@ const TAG_MAP: Record<string, string[]> = {
   'korean': ['SAMSUNG.KR', '005930.KR', '000660.KR', 'LG.KR'],
   'british': ['HSBA.UK', 'ULVR.UK', 'BP.UK', 'GSK.UK', 'AZN.UK', 'SHEL', 'RIO.UK', 'BATS.UK', 'VOD.UK', 'BT.UK', 'BARC.UK', 'LLOY.UK', 'BAE.UK', 'BRBY.UK'],
 
+  // GLP-1 / Obesity / Weight loss (hot sector)
+  'glp': ['LLY', 'NVO', 'AMGN', 'VKTX', 'PFE'],
+  'glp-1': ['LLY', 'NVO', 'AMGN', 'VKTX'],
+  'obesity': ['LLY', 'NVO', 'AMGN', 'VKTX'],
+  'wegovy': ['NVO'],
+  'mounjaro': ['LLY'],
+  'tirzepatide': ['LLY'],
+  'semaglutide': ['NVO'],
+  'diabetes': ['NVO', 'LLY', 'DXCM', 'ABT', 'PODD', 'TNDM'],
+
+  // eVTOL / Flying cars / Air taxi
+  'evtol': ['JOBY', 'ACHR', 'LILM', 'BA'],
+  'flying car': ['JOBY', 'ACHR', 'LILM'],
+  'air taxi': ['JOBY', 'ACHR', 'LILM'],
+
+  // Semiconductor Equipment
+  'semiconductor equipment': ['LRCX', 'KLAC', 'AMAT', 'ASML', 'ONTO', 'TER', 'ENTG', 'COHR'],
+  'chip equipment': ['LRCX', 'KLAC', 'AMAT', 'ASML'],
+  'wafer': ['LRCX', 'KLAC', 'AMAT', 'ASML', 'TSM'],
+  'fab': ['TSM', 'INTC', 'LRCX', 'AMAT', 'ASML', 'GFS'],
+  'foundry': ['TSM', 'INTC', 'GFS', 'UMC'],
+
+  // Storage / Memory / Hard drives
+  'memory': ['MU', 'WDC', 'STX'],
+  'storage': ['MU', 'WDC', 'STX', 'NTAP', 'PSTG', 'DELL'],
+  'hard drive': ['WDC', 'STX'],
+  'ssd': ['WDC', 'MU', 'STX'],
+  'flash': ['MU', 'WDC'],
+  'dram': ['MU', 'SAMSUNG.KR'],
+  'nand': ['MU', 'WDC'],
+
+  // Networking / Enterprise IT
+  'networking': ['CSCO', 'ANET', 'JNPR', 'HPE', 'CIEN', 'FFIV'],
+  'switch': ['CSCO', 'ANET', 'JNPR'],
+  'router': ['CSCO', 'JNPR'],
+  'wifi': ['CSCO', 'UBNT'],
+  'server': ['DELL', 'HPE', 'SMCI', 'NVDA'],
+
+  // Industrial / Conglomerates
+  'industrial': ['HON', 'GE', 'MMM', 'EMR', 'ETN', 'ROK', 'ITW', 'DOV', 'PH', 'IR'],
+  'conglomerate': ['HON', 'GE', 'MMM', 'BRK-B', 'JNJ'],
+  'automation': ['ROK', 'EMR', 'ABB.EU', 'HON', 'FANUY', 'TER'],
+  'manufacturing': ['HON', 'GE', 'MMM', 'CAT', 'DE', 'EMR', 'ITW'],
+
+  // BNPL / Buy Now Pay Later
+  'bnpl': ['AFRM', 'SQ', 'PYPL'],
+  'buy now pay later': ['AFRM', 'SQ', 'PYPL'],
+  'lending': ['AFRM', 'UPST', 'SOFI', 'RKT', 'LC'],
+  'loan': ['SOFI', 'UPST', 'RKT', 'LC', 'SLM'],
+
+  // Hydrogen / Fuel Cell / Clean tech
+  'hydrogen': ['PLUG', 'BE', 'FCEL', 'APD', 'LIN'],
+  'fuel cell': ['PLUG', 'BE', 'FCEL'],
+
+  // Rare Earth / Critical Minerals
+  'rare earth': ['MP', 'UUUU'],
+  'critical minerals': ['MP', 'ALB', 'LAC', 'UUUU'],
+
+  // Data / Analytics / AI Infrastructure
+  'data analytics': ['PLTR', 'SNOW', 'DDOG', 'ESTC', 'MDB', 'CFLT', 'SPLK'],
+  'analytics': ['PLTR', 'SNOW', 'DDOG', 'CRWD', 'MSCI', 'VRSK'],
+  'database': ['MDB', 'ORCL', 'SNOW', 'ESTC'],
+  'big data': ['PLTR', 'SNOW', 'DDOG', 'MDB', 'ESTC'],
+  'observability': ['DDOG', 'DT', 'ESTC', 'SPLK', 'NET'],
+
+  // Utilities / Power
+  'utility': ['NEE', 'SO', 'DUK', 'AEP', 'SRE', 'D', 'EXC', 'ED', 'XEL', 'WEC', 'CEG', 'VST'],
+  'power': ['NEE', 'SO', 'DUK', 'CEG', 'VST', 'GEV', 'GE'],
+  'grid': ['NEE', 'GE', 'GEV', 'ETN', 'PWR', 'EME'],
+  'electricity': ['NEE', 'SO', 'DUK', 'CEG', 'VST', 'AEP'],
+
+  // Private Equity / Alternative Assets
+  'private equity': ['BX', 'KKR', 'APO', 'ARES', 'CG', 'TPG', 'OWL'],
+  'hedge fund': ['BX', 'KKR', 'APO', 'ARES'],
+  'alternative': ['BX', 'KKR', 'APO', 'ARES', 'CG', 'TPG'],
+
+  // Psychedelics / Mental Health
+  'psychedelic': ['ATAI', 'CMPS', 'MNMD'],
+  'mental health': ['ATAI', 'CMPS', 'TDOC', 'HIMS'],
+  'telehealth': ['TDOC', 'HIMS', 'AMWL'],
+
+  // Smart Home / IoT / Connected Devices
+  'smart home': ['AMZN', 'GOOGL', 'AAPL'],
+  'iot': ['CSCO', 'HON', 'KEYS', 'TER'],
+
+  // 3D Printing
+  '3d printing': ['DDD', 'XONE'],
+  'additive': ['DDD', 'XONE'],
+
+  // Climate / ESG / Carbon
+  'climate': ['ENPH', 'SEDG', 'FSLR', 'NEE', 'PLUG', 'TSLA', 'BE'],
+  'esg': ['NEE', 'ENPH', 'TSLA', 'FSLR'],
+  'carbon': ['KRBN'],
+  'green energy': ['ENPH', 'SEDG', 'FSLR', 'NEE', 'RUN', 'PLUG', 'BE'],
+
+  // Apparel / Athleisure (expanding existing)
+  'athleisure': ['LULU', 'NKE', 'UAA', 'ONON', 'DECK'],
+  'activewear': ['LULU', 'NKE', 'UAA', 'ONON'],
+
+  // Aging Population / Senior Living
+  'aging': ['WELL', 'UNH', 'ABT', 'MDT', 'SYK'],
+  'senior': ['WELL', 'UNH', 'HCA'],
+
+  // Autonomous / Self-driving (expanding)
+  'lidar': ['LAZR', 'INVZ', 'OUST', 'AEVA'],
+  'adas': ['MBLY', 'LAZR', 'QCOM', 'NVDA'],
+
+  // Cybersecurity (expanding with more keywords)
+  'hacking': ['CRWD', 'PANW', 'ZS', 'FTNT', 'S'],
+  'firewall': ['PANW', 'FTNT', 'ZS'],
+  'antivirus': ['CRWD', 'S', 'GEN'],
+  'identity': ['OKTA', 'CYBR', 'PING'],
+
+  // Streaming / Content (expanding)
+  'podcast': ['SPOT', 'AAPL', 'AMZN', 'SiriusXM'],
+  'anime': ['SONY', 'CRNC', 'BILI'],
+
+  // Fintech / Neobank
+  'neobank': ['SOFI', 'NU', 'HOOD'],
+  'brokerage': ['SCHW', 'HOOD', 'IBKR', 'FUTU'],
+  'trading': ['HOOD', 'IBKR', 'SCHW', 'CME', 'ICE', 'COIN'],
+  'exchange': ['CME', 'ICE', 'NDAQ', 'CBOE', 'COIN'],
+  'stock exchange': ['CME', 'ICE', 'NDAQ', 'CBOE'],
+
+  // Defense Tech / GovTech
+  'govtech': ['PLTR', 'BAH', 'SAIC', 'LDOS', 'CACI'],
+  'intelligence': ['PLTR', 'BAH', 'LDOS', 'CACI'],
+  'spy': ['PLTR', 'BAH', 'LDOS', 'LMT', 'NOC'],
+
+  // Biotech / Gene Therapy / CRISPR
+  'crispr': ['CRSP', 'EDIT', 'NTLA', 'BEAM'],
+  'gene therapy': ['CRSP', 'EDIT', 'NTLA', 'BEAM', 'ALNY'],
+  'gene editing': ['CRSP', 'EDIT', 'NTLA', 'BEAM'],
+  'cancer': ['MRNA', 'REGN', 'BMY', 'MRK', 'GILD', 'EXAS'],
+  'oncology': ['MRK', 'BMY', 'REGN', 'MRNA', 'GILD'],
+
+  // Payments / Digital Wallet
+  'digital wallet': ['SQ', 'PYPL', 'AAPL', 'GOOGL'],
+  'mobile payment': ['SQ', 'PYPL', 'V', 'MA'],
+  'contactless': ['V', 'MA', 'SQ', 'PYPL'],
+
+  // Staffing / HR / Workforce
+  'staffing': ['RHI', 'MAN', 'HEIDRICK', 'KELYA'],
+  'hr': ['WDAY', 'PAYC', 'PAYX', 'ADP'],
+  'payroll': ['ADP', 'PAYX', 'PAYC'],
+
+  // Subscription Economy
+  'saas subscription': ['CRM', 'NOW', 'ADBE', 'INTU', 'WDAY', 'HUBS', 'ZS'],
+
+  // Testing / Quality
+  'testing': ['A', 'TMO', 'DHR', 'KEYS'],
+  'lab': ['A', 'TMO', 'DHR', 'ILMN', 'BIO'],
+  'diagnostics': ['A', 'TMO', 'DHR', 'EXAS', 'DXCM', 'HOLX'],
+
   // Misc
-  'warehouse': ['AMZN', 'PLD', 'COST', 'WMT'],
   'subscription': ['NFLX', 'SPOT', 'AAPL', 'MSFT', 'AMZN', 'DIS', 'CRM', 'ADBE'],
   'marketplace': ['AMZN', 'EBAY', 'ETSY', 'SHOP', 'ABNB', 'BKNG', 'UBER', 'DASH'],
   'electric': ['TSLA', 'RIVN', 'LCID', 'NIO', 'ENPH', 'NEE', 'SO', 'DUK'],

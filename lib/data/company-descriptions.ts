@@ -335,6 +335,38 @@ const DESCRIPTIONS: Record<string, string> = {
   'HLT': 'Hilton Worldwide Holdings operates a global portfolio of hotels and resorts across brands including Hilton, Conrad, DoubleTree, Hampton, and Waldorf Astoria. The company has thousands of properties worldwide and operates primarily through management and franchise agreements.',
   'WYNN': 'Wynn Resorts operates luxury casino resorts in Las Vegas and Macau, known for premium hospitality, gaming, dining, and entertainment experiences. The company\'s properties cater to high-end customers and include Wynn Las Vegas, Encore, and Wynn Macau.',
   'LVS': 'Las Vegas Sands is a casino and resort company operating integrated resorts in Macau and Singapore, after selling its Las Vegas properties. The company\'s Marina Bay Sands in Singapore and properties in Macau are among the most profitable casino resorts in the world.',
+
+  // Clean Energy / Hydrogen
+  'PLUG': 'Plug Power is a leading provider of hydrogen fuel cell systems, green hydrogen production, and hydrogen infrastructure solutions. The company serves material handling, on-road vehicles, and stationary power markets, aiming to build an end-to-end green hydrogen ecosystem.',
+  'BE': 'Bloom Energy manufactures solid oxide fuel cells that generate clean, reliable on-site electricity from natural gas or hydrogen. The company serves data centers, hospitals, manufacturers, and utilities seeking distributed power generation with lower emissions.',
+  'FCEL': 'FuelCell Energy designs, manufactures, and operates stationary fuel cell power plants that generate electricity cleanly and efficiently. The company\'s platforms can run on natural gas, biogas, or hydrogen and serve utilities, industrial, and government customers.',
+
+  // Gene Editing / Biotech
+  'CRSP': 'CRISPR Therapeutics is a gene-editing company focused on developing transformative medicines using its proprietary CRISPR/Cas9 technology. The company gained landmark FDA approval for Casgevy, the first CRISPR-based therapy, treating sickle cell disease and beta thalassemia.',
+  'EDIT': 'Editas Medicine is a clinical-stage genome editing company developing transformative medicines using CRISPR technology. The company focuses on treatments for serious diseases including eye disorders, blood diseases, and cancer.',
+  'NTLA': 'Intellia Therapeutics is a genome editing company developing CRISPR-based therapies for genetic diseases, with a focus on in vivo (inside the body) gene editing. The company is pioneering treatments for liver diseases, blood disorders, and neurological conditions.',
+
+  // eVTOL
+  'ACHR': 'Archer Aviation is developing an all-electric vertical takeoff and landing (eVTOL) aircraft called Midnight for urban air mobility. The company plans to operate an air taxi service and has partnerships with United Airlines and the U.S. Department of Defense.',
+
+  // Rare Earth / Mining
+  'MP': 'MP Materials is the largest producer of rare earth materials in the Western Hemisphere, operating the Mountain Pass mine in California. Rare earths are critical components in electric vehicle motors, wind turbines, electronics, and defense applications.',
+
+  // Fintech
+  'UPST': 'Upstart Holdings operates an AI-powered lending platform that partners with banks and credit unions to improve access to affordable credit. The company uses machine learning models that go beyond traditional credit scores to assess borrower risk.',
+  'LC': 'LendingClub is a digital marketplace bank that connects borrowers with investors through its online lending platform. The company offers personal loans, auto refinancing, and patient financing while operating as a full-service digital bank.',
+
+  // Diagnostics / Life Sciences
+  'EXAS': 'Exact Sciences develops and markets cancer screening and diagnostic tests, best known for Cologuard, a non-invasive colorectal cancer screening test. The company also offers Oncotype DX for breast cancer prognosis and is expanding into multi-cancer early detection.',
+
+  // Quantum Computing
+  'IONQ': 'IonQ is a quantum computing company building general-purpose trapped-ion quantum computers available through major cloud platforms. The company aims to make quantum computing commercially viable for applications in chemistry, finance, logistics, and machine learning.',
+  'RGTI': 'Rigetti Computing designs and manufactures superconducting quantum computers and provides cloud access to its quantum processors. The company focuses on hybrid classical-quantum computing for near-term practical applications.',
+
+  // AI Pure-play
+  'SOUN': 'SoundHound AI develops voice AI technology and conversational intelligence platforms used in automotive, restaurant, and IoT applications. The company\'s AI assistants enable voice-enabled ordering, customer service, and device interactions for enterprise customers.',
+  'BBAI': 'BigBear.ai provides AI-powered analytics and cyber engineering solutions to defense, intelligence, and commercial customers. The company specializes in predictive analytics, autonomous systems, and decision support for complex operational environments.',
+
 }
 
 export function getCompanyDescription(symbol: string): string | null {
