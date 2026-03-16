@@ -11,6 +11,7 @@ import { INDEXES, IndexKey } from '@/lib/data/indexes'
 import { getTaggedTickers } from '@/lib/data/search-tags'
 import { useTheme } from './context/ThemeContext'
 import NotificationBell from './components/NotificationBell'
+import StockPreviewCard, { useStockPreview } from './components/StockPreviewCard'
 
 type CategoryKey = 'all' | 'tech' | 'healthcare' | 'finance' | 'ai' | 'saas' | 'crypto' | 'energy' | 'consumer' | 'industrial' | 'materials' | 'real-estate' | 'comms' | 'utilities'
 
@@ -184,6 +185,8 @@ export default function Home() {
     (symbol: string) => router.push(`/stock/${symbol}`),
     [router]
   )
+
+  const { preview, handleMouseEnter, handleMouseLeave, handleTouchStart, handleTouchMove, handleTouchEnd, closePreview } = useStockPreview()
 
   // Market Pulse tickers
   const PULSE_SYMBOLS = ['SPY', 'QQQ', 'DIA', 'BTC-USD', 'GLD']
@@ -519,6 +522,11 @@ export default function Home() {
                 style={{
                   animation: `fadeUp 0.3s ease-out ${Math.min(i * 12, 600)}ms both`,
                 }}
+                onMouseEnter={(e) => handleMouseEnter(stock, e)}
+                onMouseLeave={handleMouseLeave}
+                onTouchStart={(e) => handleTouchStart(stock, e)}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
               >
                 {/* Watchlist star — always visible on mobile, hover on desktop */}
                 <div className="absolute -top-1 -right-1 z-10 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200">
@@ -775,6 +783,16 @@ export default function Home() {
             </div>
           </div>
         </>
+      )}
+
+      {/* Stock Preview Card — desktop hover / mobile long-press */}
+      {preview && (
+        <StockPreviewCard
+          stock={preview.stock}
+          anchor={preview.anchor}
+          mobile={preview.mobile}
+          onClose={closePreview}
+        />
       )}
 
       {/* Inline keyframes */}
