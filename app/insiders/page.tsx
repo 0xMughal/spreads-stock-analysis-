@@ -7,6 +7,8 @@ import Link from 'next/link'
 import StockLogo from '@/app/components/StockLogo'
 import { useTheme } from '@/app/context/ThemeContext'
 import { InsiderTrade } from '@/lib/types'
+import ErrorCard from '@/app/components/ErrorCard'
+import { TableSkeleton } from '@/app/components/Skeleton'
 
 interface AggregatedTrade extends InsiderTrade {
   symbol: string
@@ -54,19 +56,23 @@ function InsidersPageContent() {
 
   const [trades, setTrades] = useState<AggregatedTrade[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
   const [activeFilter, setActiveFilter] = useState<FilterTab>('all')
 
-  useEffect(() => {
+  const fetchTrades = () => {
+    setLoading(true); setError(false)
     const url = filterSymbol
       ? `/api/insider-trades?symbol=${filterSymbol}`
       : '/api/insider-trades'
 
     fetch(url)
-      .then((r) => r.json())
+      .then((r) => { if (!r.ok) throw new Error(); return r.json() })
       .then((data) => setTrades(data.trades || []))
-      .catch(() => setTrades([]))
+      .catch(() => { setTrades([]); setError(true) })
       .finally(() => setLoading(false))
-  }, [filterSymbol])
+  }
+
+  useEffect(() => { fetchTrades() }, [filterSymbol])
 
   const filteredTrades = useMemo(() => {
     let result = trades
@@ -215,12 +221,13 @@ function InsidersPageContent() {
 
         {/* Loading */}
         {loading ? (
-          <div className="flex items-center justify-center py-32">
-            <div
-              className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin"
-              style={{ borderColor: 'var(--border-color)', borderTopColor: 'var(--accent, var(--spreads-green))' }}
-            />
-          </div>
+          <TableSkeleton rows={10} columns={5} />
+        ) : error ? (
+          <ErrorCard
+            title="Unable to load insider trades"
+            message="Trade data is temporarily unavailable. Please try again."
+            onRetry={fetchTrades}
+          />
         ) : filteredTrades.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-32" style={{ color: 'var(--text-muted)' }}>
             <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="mb-4 opacity-40">

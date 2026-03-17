@@ -7,6 +7,8 @@ import StockLogo from '../components/StockLogo'
 import { Stock } from '@/lib/types'
 import { useTheme } from '../context/ThemeContext'
 import { INDEXES } from '@/lib/data/indexes'
+import ErrorCard from '../components/ErrorCard'
+import { TableSkeleton } from '../components/Skeleton'
 
 // --- Metric definitions ---
 interface MetricDef {
@@ -167,6 +169,7 @@ export default function ScreenerPage() {
   const { theme, toggleTheme } = useTheme()
   const [stocks, setStocks] = useState<Stock[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
 
   // Filters
   const [filters, setFilters] = useState<ActiveFilter[]>([])
@@ -183,13 +186,16 @@ export default function ScreenerPage() {
   // Search within add-filter menu
   const [metricSearch, setMetricSearch] = useState('')
 
-  useEffect(() => {
+  const fetchStocks = useCallback(() => {
+    setLoading(true); setError(false)
     fetch('/api/stocks')
-      .then((r) => r.json())
+      .then((r) => { if (!r.ok) throw new Error(); return r.json() })
       .then((data) => setStocks(data.data || []))
-      .catch(() => setStocks([]))
+      .catch(() => { setStocks([]); setError(true) })
       .finally(() => setLoading(false))
   }, [])
+
+  useEffect(() => { fetchStocks() }, [fetchStocks])
 
   // Get unique values for select-type metrics
   const selectOptions = useMemo(() => {
@@ -608,9 +614,13 @@ export default function ScreenerPage() {
 
         {/* Results */}
         {loading ? (
-          <div className="flex items-center justify-center py-32">
-            <div className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: 'var(--border-color)', borderTopColor: 'var(--accent, var(--spreads-green))' }} />
-          </div>
+          <TableSkeleton rows={12} columns={6} />
+        ) : error ? (
+          <ErrorCard
+            title="Unable to load stocks"
+            message="Market data is temporarily unavailable. Please try again."
+            onRetry={fetchStocks}
+          />
         ) : paged.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-32" style={{ color: 'var(--text-muted)' }}>
             <p className="text-base font-medium">No stocks match your filters</p>

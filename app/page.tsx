@@ -12,6 +12,8 @@ import { getTaggedTickers } from '@/lib/data/search-tags'
 import { useTheme } from './context/ThemeContext'
 import NotificationBell from './components/NotificationBell'
 import StockPreviewCard, { useStockPreview } from './components/StockPreviewCard'
+import ErrorCard from './components/ErrorCard'
+import { StockGridSkeleton, MoversRowSkeleton } from './components/Skeleton'
 
 type CategoryKey = 'all' | 'tech' | 'healthcare' | 'finance' | 'ai' | 'saas' | 'crypto' | 'energy' | 'consumer' | 'industrial' | 'materials' | 'real-estate' | 'comms' | 'utilities'
 
@@ -88,6 +90,7 @@ export default function Home() {
   const { theme, toggleTheme } = useTheme()
   const [stocks, setStocks] = useState<Stock[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
   const [search, setSearch] = useState('')
   const [activeCategory, setActiveCategory] = useState<CategoryKey>('all')
   const [activeRegion, setActiveRegion] = useState<RegionKey>('all')
@@ -97,13 +100,17 @@ export default function Home() {
   const searchRef = useRef<HTMLInputElement>(null)
   const filterRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
+  const fetchStocks = useCallback(() => {
+    setLoading(true)
+    setError(false)
     fetch('/api/stocks')
-      .then((r) => r.json())
+      .then((r) => { if (!r.ok) throw new Error(); return r.json() })
       .then((data) => setStocks(data.data || []))
-      .catch(() => setStocks([]))
+      .catch(() => { setStocks([]); setError(true) })
       .finally(() => setLoading(false))
   }, [])
+
+  useEffect(() => { fetchStocks() }, [fetchStocks])
 
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -500,9 +507,24 @@ export default function Home() {
         )}
 
         {loading ? (
-          <div className="flex items-center justify-center py-32">
-            <div className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: 'var(--border-color)', borderTopColor: 'var(--accent, var(--spreads-green))' }} />
+          <div>
+            {isDefaultView && (
+              <div className="mb-8 sm:mb-10">
+                <div className="h-3 w-28 skeleton rounded mb-4" />
+                <MoversRowSkeleton />
+                <div className="mt-4">
+                  <MoversRowSkeleton />
+                </div>
+              </div>
+            )}
+            <StockGridSkeleton count={60} />
           </div>
+        ) : error ? (
+          <ErrorCard
+            title="Unable to load stocks"
+            message="Market data is temporarily unavailable. Please try again."
+            onRetry={fetchStocks}
+          />
         ) : displayStocks.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-32" style={{ color: 'var(--text-muted)' }}>
             <p className="text-base font-medium">No stocks found</p>

@@ -12,6 +12,8 @@ import { useTheme } from '@/app/context/ThemeContext'
 import { Stock } from '@/lib/types'
 import { formatCurrency, formatLargeCurrency, formatPercent } from '@/lib/utils'
 import html2canvas from 'html2canvas'
+import ErrorCard from '@/app/components/ErrorCard'
+import { TableSkeleton } from '@/app/components/Skeleton'
 
 export default function WatchlistPage() {
   const router = useRouter()
@@ -20,6 +22,7 @@ export default function WatchlistPage() {
   const { watchlist, loading: watchlistLoading } = useWatchlist()
   const [allStocks, setAllStocks] = useState<Stock[]>([])
   const [stocksLoading, setStocksLoading] = useState(true)
+  const [stocksError, setStocksError] = useState(false)
 
   const isLoggedIn = status === 'authenticated'
   const shareCardRef = useRef<HTMLDivElement>(null)
@@ -62,13 +65,16 @@ export default function WatchlistPage() {
     }
   }, [sharing])
 
-  useEffect(() => {
+  const fetchStocks = useCallback(() => {
+    setStocksLoading(true); setStocksError(false)
     fetch('/api/stocks')
-      .then(r => r.json())
+      .then(r => { if (!r.ok) throw new Error(); return r.json() })
       .then(data => setAllStocks(data.data || []))
-      .catch(() => setAllStocks([]))
+      .catch(() => { setAllStocks([]); setStocksError(true) })
       .finally(() => setStocksLoading(false))
   }, [])
+
+  useEffect(() => { fetchStocks() }, [fetchStocks])
 
   const watchlistedStocks = useMemo(() => {
     if (!watchlist.length || !allStocks.length) return []
@@ -179,9 +185,13 @@ export default function WatchlistPage() {
       {/* Main Content */}
       <main className="flex-1 max-w-[1200px] w-full mx-auto px-4 sm:px-8 py-6 sm:py-10">
         {loading ? (
-          <div className="flex items-center justify-center py-32">
-            <div className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: 'var(--border-color)', borderTopColor: 'var(--accent, var(--spreads-green))' }} />
-          </div>
+          <TableSkeleton rows={6} columns={5} />
+        ) : stocksError ? (
+          <ErrorCard
+            title="Unable to load stock data"
+            message="Could not fetch latest prices. Please try again."
+            onRetry={fetchStocks}
+          />
         ) : watchlistedStocks.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24" style={{ color: 'var(--text-muted)' }}>
             <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mb-4 opacity-40">
