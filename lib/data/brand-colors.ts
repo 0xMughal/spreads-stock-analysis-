@@ -95,6 +95,7 @@ export const BRAND_COLORS: Record<string, string> = {
   MCO: '#00A3E0',
   ICE: '#0072CE',
   CME: '#003B70',
+  HOOD: '#00C805',
   NDAQ: '#0091EA',
   CB: '#004C97',
   AIG: '#003DA5',
@@ -187,6 +188,7 @@ export const BRAND_COLORS: Record<string, string> = {
   LULU: '#D31334',
   DASH: '#FF3008',
   LYFT: '#FF00BF',
+  GRAB: '#00B14F',
 
   // Energy
   XOM: '#ED1C24',
