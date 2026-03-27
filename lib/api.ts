@@ -519,6 +519,8 @@ export async function getStockBySymbol(symbol: string): Promise<Stock | null> {
       marketCap: marketCap || (quote.c * 1e9),
       pe,
       eps,
+      forwardPE: null as number | null,
+      forwardEps: null as number | null,
       ebitda,
       dividendYield,
       sector: metadata.sector,
@@ -1022,7 +1024,7 @@ export function generateMockEarnings(from: string, to: string): EarningsEvent[] 
 }
 
 export function generateMockStocks(): Stock[] {
-  const mockStocks: Stock[] = [
+  const mockStocks = [
     { symbol: 'AAPL', name: 'Apple Inc.', price: 178.72, change: 2.15, changesPercentage: 1.22, marketCap: 2800000000000, pe: 28.5, eps: 6.27, ebitda: 130000000000, dividendYield: 0.5, sector: 'Technology', industry: 'Consumer Electronics', exchange: 'NASDAQ', country: 'US', volume: 52000000, avgVolume: 58000000, dayHigh: 180.12, dayLow: 176.50, yearHigh: 199.62, yearLow: 164.08 },
     { symbol: 'MSFT', name: 'Microsoft Corporation', price: 378.91, change: 4.23, changesPercentage: 1.13, marketCap: 2810000000000, pe: 35.2, eps: 10.76, ebitda: 98000000000, dividendYield: 0.8, sector: 'Technology', industry: 'Software', exchange: 'NASDAQ', country: 'US', volume: 22000000, avgVolume: 25000000, dayHigh: 381.50, dayLow: 375.20, yearHigh: 390.00, yearLow: 275.00 },
     { symbol: 'GOOGL', name: 'Alphabet Inc.', price: 141.80, change: 1.95, changesPercentage: 1.39, marketCap: 1780000000000, pe: 25.1, eps: 5.65, ebitda: 85000000000, dividendYield: null, sector: 'Communication Services', industry: 'Internet Services', exchange: 'NASDAQ', country: 'US', volume: 25000000, avgVolume: 27000000, dayHigh: 143.20, dayLow: 140.10, yearHigh: 153.78, yearLow: 102.63 },
@@ -1056,7 +1058,7 @@ export function generateMockStocks(): Stock[] {
   ]
 
   const additionalStocks = generateAdditionalMockStocks()
-  return [...mockStocks, ...additionalStocks]
+  return [...mockStocks.map(s => ({ ...s, forwardPE: null as number | null, forwardEps: null as number | null })), ...additionalStocks]
 }
 
 function generateAdditionalMockStocks(): Stock[] {
