@@ -26,6 +26,8 @@ function quoteToStock(
     marketCap: q.marketCap || 0,
     pe: q.trailingPE || null,
     eps: q.epsTrailingTwelveMonths || null,
+        forwardPE: null,
+        forwardEps: null,
     ebitda: null,
     dividendYield: q.dividendYield || null,
     sector: meta?.sector || 'Other',

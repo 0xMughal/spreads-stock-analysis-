@@ -46,6 +46,8 @@ async function fetchQuickBatch(symbols: string[]): Promise<Stock[]> {
             : quote.c * 1e9,
           pe: metrics?.metric?.peTTM ?? null,
           eps: metrics?.metric?.epsTTM ?? null,
+        forwardPE: null,
+        forwardEps: null,
           ebitda: null,
           dividendYield: metrics?.metric?.dividendYieldIndicatedAnnual ?? null,
           sector: metadata.sector,

@@ -7,6 +7,8 @@ export interface Stock {
   marketCap: number
   pe: number | null
   eps: number | null
+  forwardPE?: number | null
+  forwardEps?: number | null
   ebitda: number | null
   dividendYield: number | null
   sector: string

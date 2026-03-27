@@ -34,6 +34,8 @@ export async function GET() {
       marketCap: 0,
       pe: null,
       eps: null,
+        forwardPE: null,
+        forwardEps: null,
       ebitda: null,
       dividendYield: null,
       sector: entry.sector || 'Other',

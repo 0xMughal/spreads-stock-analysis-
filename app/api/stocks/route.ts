@@ -24,6 +24,8 @@ interface PriceData {
   marketCap: number
   pe: number | null
   eps: number | null
+  forwardPE: number | null
+  forwardEps: number | null
   dividendYield: number | null
   volume: number
   avgVolume: number
@@ -105,6 +107,8 @@ export async function GET() {
         marketCap,
         pe: p?.pe ?? null,
         eps: p?.eps ?? null,
+        forwardPE: p?.forwardPE ?? null,
+        forwardEps: p?.forwardEps ?? null,
         ebitda: null,
         dividendYield: p?.dividendYield ?? null,
         sector: entry.sector || 'Other',

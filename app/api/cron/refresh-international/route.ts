@@ -77,6 +77,8 @@ function buildStock(
     marketCap: metrics?.metric?.marketCapitalization ?? 0,
     pe: metrics?.metric?.peTTM ?? metrics?.metric?.peBasicExclExtraTTM ?? 0,
     eps: metrics?.metric?.epsTTM ?? metrics?.metric?.epsBasicExclExtraItemsTTM ?? 0,
+        forwardPE: null,
+        forwardEps: null,
     ebitda: null,
     dividendYield: metrics?.metric?.dividendYieldIndicatedAnnual ?? 0,
     sector: metadata.sector,

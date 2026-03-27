@@ -1305,6 +1305,10 @@ export default function StockDetailPage() {
                 <p className="text-sm font-bold" style={{ color: S.text }}>{stock.pe?.toFixed(1) || 'N/A'}</p>
               </div>
               <div>
+                <p className="text-[10px] font-medium uppercase tracking-wider" style={{ color: S.textDim }}>Forward P/E</p>
+                <p className="text-sm font-bold" style={{ color: S.text }}>{stock.forwardPE?.toFixed(1) || 'N/A'}</p>
+              </div>
+              <div>
                 <p className="text-[10px] font-medium uppercase tracking-wider" style={{ color: S.textDim }}>TTM Revenue</p>
                 <p className="text-sm font-bold" style={{ color: S.text }}>{ttmStats?.ttmRev ? formatCompact(ttmStats.ttmRev) : 'N/A'}</p>
               </div>
