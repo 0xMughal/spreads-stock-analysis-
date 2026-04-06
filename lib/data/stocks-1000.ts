@@ -902,6 +902,7 @@ export const STOCKS_1000: StockMetadata[] = [
 
   // Crypto / Blockchain-adjacent
   { symbol: "MSTR", name: "MicroStrategy", sector: "Technology", industry: "Software - Application" },
+  { symbol: "STRC", name: "Strategy Inc", sector: "Technology", industry: "Software - Application" },
   { symbol: "MARA", name: "Marathon Digital Holdings", sector: "Technology", industry: "Blockchain" },
   { symbol: "RIOT", name: "Riot Platforms", sector: "Technology", industry: "Blockchain" },
   { symbol: "CLSK", name: "CleanSpark Inc.", sector: "Technology", industry: "Blockchain" },

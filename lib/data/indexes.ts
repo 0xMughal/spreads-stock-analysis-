@@ -15,7 +15,7 @@ const NASDAQ100_SET = new Set(NASDAQ100_STOCKS.map(s => s.symbol))
 // Spreads — 59 tokenized assets available on Ondo Global Markets
 const SPREADS_SET = new Set([
   'META', 'JNJ', 'V', 'MRK', 'STRK', 'BRK-B', 'ABT', 'PLTR', 'XOM', 'LLY',
-  'ABBV', 'PEP', 'MSTR', 'TQQQ', 'NVDA', 'UNH', 'MA', 'APP', 'GLD', 'AMD',
+  'ABBV', 'PEP', 'MSTR', 'STRC', 'TQQQ', 'NVDA', 'UNH', 'MA', 'APP', 'GLD', 'AMD',
   'PG', 'KO', 'HON', 'GOOGL', 'PFE', 'WMT', 'INTC', 'QQQ', 'VTI', 'MSFT',
   'AMZN', 'AVGO', 'TSLA', 'JPM', 'CVX', 'CSCO', 'SPY', 'AAPL', 'HOOD',
   'VT', 'NVO', 'TBLL', 'ORCL', 'STRF', 'MCD', 'NFLX', 'GS', 'CMCSA', 'BAC',

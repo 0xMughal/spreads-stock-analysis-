@@ -297,6 +297,7 @@ export const BRAND_COLORS: Record<string, string> = {
 
   // Crypto-related
   MSTR: '#C8102E',
+  STRC: '#FF6600',
   MARA: '#FF6B00',
   RIOT: '#0066FF',
 

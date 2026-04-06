@@ -439,6 +439,7 @@ export const SECTOR_MAP: Record<string, string> = {
   MSFT: 'Technology',
   MSI: 'Technology',
   MSTR: 'Technology',
+  STRC: 'Technology',
   MT: 'Materials',
   MTB: 'Financials',
   MTCH: 'Communication Services',

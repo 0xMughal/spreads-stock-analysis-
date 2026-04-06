@@ -69,9 +69,9 @@ const TAG_MAP: Record<string, string[]> = {
   'asset management': ['BLK', 'BX', 'KKR', 'APO', 'ARES', 'TROW', 'IVZ', 'BEN'],
 
   // Crypto
-  'crypto': ['COIN', 'MARA', 'RIOT', 'MSTR', 'CIFR', 'WULF', 'IREN', 'OKLO', 'HOOD', 'SOFI', 'SQ'],
-  'bitcoin': ['COIN', 'MARA', 'RIOT', 'MSTR', 'CIFR', 'WULF', 'IREN'],
-  'blockchain': ['COIN', 'MARA', 'RIOT', 'MSTR', 'IBM', 'SQ'],
+  'crypto': ['COIN', 'MARA', 'RIOT', 'MSTR', 'STRC', 'CIFR', 'WULF', 'IREN', 'OKLO', 'HOOD', 'SOFI', 'SQ'],
+  'bitcoin': ['COIN', 'MARA', 'RIOT', 'MSTR', 'STRC', 'CIFR', 'WULF', 'IREN'],
+  'blockchain': ['COIN', 'MARA', 'RIOT', 'MSTR', 'STRC', 'IBM', 'SQ'],
   'mining': ['MARA', 'RIOT', 'CIFR', 'WULF', 'IREN', 'NEM', 'GOLD', 'FCX', 'BHP', 'RIO', 'RIO.UK', 'AAL.UK', 'GLEN.UK'],
 
   // Pharma & Healthcare

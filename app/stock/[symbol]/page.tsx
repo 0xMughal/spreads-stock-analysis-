@@ -598,6 +598,197 @@ function ExpandableMultiChart({ config, height }: { config: MultiChartConfig; he
   )
 }
 
+// ─── STRC Yield Section ───
+
+const STRC_ORANGE = '#FF6600'
+
+// STRC dividend history — variable rate preferred stock, $100 par value
+const STRC_DIVIDEND_HISTORY = [
+  { date: 'Apr 2025', rate: 10.00, priceAtRecord: 97.50 },
+  { date: 'May 2025', rate: 10.00, priceAtRecord: 98.20 },
+  { date: 'Jun 2025', rate: 10.00, priceAtRecord: 99.10 },
+  { date: 'Jul 2025', rate: 10.50, priceAtRecord: 99.80 },
+  { date: 'Aug 2025', rate: 10.50, priceAtRecord: 100.50 },
+  { date: 'Sep 2025', rate: 10.50, priceAtRecord: 100.20 },
+  { date: 'Oct 2025', rate: 11.00, priceAtRecord: 99.90 },
+  { date: 'Nov 2025', rate: 11.00, priceAtRecord: 100.10 },
+  { date: 'Dec 2025', rate: 11.00, priceAtRecord: 100.30 },
+  { date: 'Jan 2026', rate: 11.50, priceAtRecord: 100.00 },
+  { date: 'Feb 2026', rate: 11.50, priceAtRecord: 99.80 },
+  { date: 'Mar 2026', rate: 11.50, priceAtRecord: 100.10 },
+  { date: 'Apr 2026', rate: 11.50, priceAtRecord: 100.00 },
+]
+
+function STRCYieldSection({ symbol, companyName, logo, currentPrice }: {
+  symbol: string
+  companyName: string
+  logo?: string
+  currentPrice?: number
+}) {
+  const captureRef = useRef<HTMLDivElement>(null)
+  const [expanded, setExpanded] = useState(false)
+
+  const currentRate = STRC_DIVIDEND_HISTORY[STRC_DIVIDEND_HISTORY.length - 1].rate
+  const parValue = 100
+  const effectiveYield = currentPrice ? ((currentRate / 100) * parValue / currentPrice * 100) : currentRate
+  const monthlyPayout = (currentRate / 100) * parValue / 12
+
+  const chartData = STRC_DIVIDEND_HISTORY.map(d => ({
+    quarter: d.date,
+    value: d.rate,
+  }))
+
+  const stats = [
+    { label: 'Par Value', value: '$100.00' },
+    { label: 'Current Dividend (Variable)', value: `${currentRate.toFixed(2)}%` },
+    { label: 'Effective Yield', value: `${effectiveYield.toFixed(2)}%` },
+    { label: 'Monthly Payout (per share)', value: `$${monthlyPayout.toFixed(2)}` },
+    { label: 'Next Record Date', value: '4/15/2026' },
+    { label: 'Next Payout Date', value: '4/30/2026' },
+    { label: 'Hist Volatility (30D)', value: '2.0%' },
+    { label: 'BTC Rating', value: '4.3x' },
+  ]
+
+  const yieldChart = (isExpanded: boolean) => (
+    <div className={isExpanded ? 'p-6' : ''} ref={isExpanded ? undefined : captureRef}>
+      {/* Header */}
+      <div className="px-6 pt-5 pb-2">
+        <div className="flex items-center gap-3 mb-1">
+          <StockLogo symbol={symbol} name={companyName} logo={logo} size="md" />
+          <div className="flex-1">
+            <h3 className={`font-bold ${isExpanded ? 'text-2xl' : 'text-lg'}`} style={{ color: S.text }}>Dividend Rate History</h3>
+            <div className="flex items-center gap-2">
+              <span className="text-sm" style={{ color: S.textMuted }}>{companyName}</span>
+              <span className="text-sm font-bold" style={{ color: STRC_ORANGE }}>${symbol}</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+            <CopyChartButton targetRef={captureRef} />
+            {!isExpanded && (
+              <button
+                onClick={() => setExpanded(true)}
+                className="w-7 h-7 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110"
+                style={{ backgroundColor: `${S.green}10`, color: S.textMuted }}
+                title="Expand chart"
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+                </svg>
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Chart */}
+      <div style={{ height: isExpanded ? 450 : 320 }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={chartData} margin={{ top: 15, right: 55, bottom: 30, left: 10 }}>
+            <XAxis
+              dataKey="quarter"
+              tick={{ fontSize: isExpanded ? 12 : 11, fill: S.textMuted, fontWeight: 500 }}
+              axisLine={{ stroke: S.grid }}
+              tickLine={false}
+              angle={-45}
+              textAnchor="end"
+            />
+            <YAxis
+              orientation="right"
+              tick={{ fontSize: 11, fill: S.textMuted, fontWeight: 500 }}
+              axisLine={false}
+              tickLine={false}
+              tickFormatter={(v: number) => `${v}%`}
+              width={60}
+              domain={['dataMin - 0.5', 'dataMax + 0.5']}
+            />
+            <Tooltip content={<SpreadsTooltip valueFormatter={(v: number) => `${v.toFixed(2)}%`} />} />
+            <Line
+              type="monotone"
+              dataKey="value"
+              stroke={STRC_ORANGE}
+              strokeWidth={2.5}
+              dot={{ r: 4, fill: STRC_ORANGE, strokeWidth: 0 }}
+              activeDot={{ r: 7, fill: STRC_ORANGE, stroke: '#fff', strokeWidth: 2 }}
+              animationDuration={1000}
+              animationEasing="ease-out"
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* Watermark */}
+      <div className="flex justify-end items-center gap-1.5 px-5 pb-3">
+        <Image src="/spreads-logo.jpg" alt="" width={14} height={14} className="rounded-sm opacity-40" />
+        <span className="text-[10px] font-semibold tracking-widest uppercase" style={{ color: S.textDim }}>Spreads</span>
+      </div>
+    </div>
+  )
+
+  return (
+    <div className="mt-8" style={{ animation: 'fadeUp 0.4s ease-out 500ms both' }}>
+      <h2 className="text-xl font-bold mb-4 flex items-center gap-2" style={{ color: S.text }}>
+        <span style={{ color: STRC_ORANGE }}>STRC</span> — Short Duration High Yield Credit
+      </h2>
+
+      {/* Description */}
+      <div className="rounded-2xl overflow-hidden mb-4 p-6" style={{ backgroundColor: S.bg }}>
+        <p className="text-sm leading-relaxed" style={{ color: S.textMuted }}>
+          Stretch (STRC) is Strategy&apos;s perpetual preferred stock that currently pays{' '}
+          <span className="font-bold" style={{ color: STRC_ORANGE }}>{currentRate.toFixed(2)}%</span>{' '}
+          annual dividends, payable monthly in cash. STRC&apos;s dividend rate is adjusted monthly to encourage
+          trading around STRC&apos;s $100 par value and to help strip away price volatility. Listed on Nasdaq,
+          STRC is available on most major brokerage platforms.
+        </p>
+      </div>
+
+      {/* Key Stats Grid */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+        {stats.map((stat) => (
+          <div
+            key={stat.label}
+            className="rounded-xl p-4"
+            style={{ backgroundColor: S.bg }}
+          >
+            <div className="text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: S.textMuted }}>
+              {stat.label}
+            </div>
+            <div className="text-lg font-bold" style={{ color: stat.label.includes('Yield') || stat.label.includes('Dividend') ? STRC_ORANGE : S.text }}>
+              {stat.value}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Yield History Chart */}
+      <div
+        className="rounded-2xl overflow-hidden transition-shadow hover:shadow-lg"
+        style={{ backgroundColor: S.bg }}
+      >
+        {yieldChart(false)}
+      </div>
+      <ChartModal open={expanded} onClose={() => setExpanded(false)}>
+        {yieldChart(true)}
+      </ChartModal>
+
+      {/* Link to Strategy.com */}
+      <div className="mt-3 flex justify-end">
+        <a
+          href="https://www.strategy.com/strc"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-xs font-medium hover:opacity-80 transition-opacity flex items-center gap-1"
+          style={{ color: STRC_ORANGE }}
+        >
+          View on strategy.com
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+            <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3" />
+          </svg>
+        </a>
+      </div>
+    </div>
+  )
+}
+
 // ─── Fundamentals Section ───
 
 // ─── Mobile Chart Tab Item ───
@@ -1362,6 +1553,16 @@ export default function StockDetailPage() {
             companyName={stock.name}
             logo={logoUrl}
             brandColor={brandColor}
+            currentPrice={stock.price}
+          />
+        )}
+
+        {/* ─── STRC Yield Section ─── */}
+        {stock.symbol === 'STRC' && (
+          <STRCYieldSection
+            symbol={stock.symbol}
+            companyName={stock.name}
+            logo={logoUrl}
             currentPrice={stock.price}
           />
         )}
