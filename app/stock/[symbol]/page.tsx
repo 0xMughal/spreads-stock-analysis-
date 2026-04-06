@@ -789,7 +789,281 @@ function STRCYieldSection({ symbol, companyName, logo, currentPrice }: {
   )
 }
 
-// ─── Fundamentals Section ───
+// ─── Strategy (STRC) Fundamentals Section ───
+
+// Strategy's BTC treasury data — from public 8-K filings and earnings reports
+const STRATEGY_BTC_HOLDINGS = [
+  { date: 'Sep 2020', btc: 38250, avgCost: 11111, totalCost: 425 },
+  { date: 'Dec 2020', btc: 70470, avgCost: 15964, totalCost: 1125 },
+  { date: 'Mar 2021', btc: 91326, avgCost: 24311, totalCost: 2220 },
+  { date: 'Jun 2021', btc: 105085, avgCost: 26080, totalCost: 2741 },
+  { date: 'Sep 2021', btc: 114042, avgCost: 27713, totalCost: 3160 },
+  { date: 'Dec 2021', btc: 124391, avgCost: 30159, totalCost: 3752 },
+  { date: 'Mar 2022', btc: 129218, avgCost: 30700, totalCost: 3967 },
+  { date: 'Jun 2022', btc: 129699, avgCost: 30664, totalCost: 3978 },
+  { date: 'Sep 2022', btc: 130000, avgCost: 30639, totalCost: 3983 },
+  { date: 'Dec 2022', btc: 132500, avgCost: 30397, totalCost: 4028 },
+  { date: 'Mar 2023', btc: 140000, avgCost: 29803, totalCost: 4172 },
+  { date: 'Jun 2023', btc: 152800, avgCost: 29672, totalCost: 4533 },
+  { date: 'Sep 2023', btc: 158245, avgCost: 29582, totalCost: 4682 },
+  { date: 'Dec 2023', btc: 189150, avgCost: 31168, totalCost: 5894 },
+  { date: 'Mar 2024', btc: 214246, avgCost: 35180, totalCost: 7538 },
+  { date: 'Jun 2024', btc: 226500, avgCost: 36798, totalCost: 8335 },
+  { date: 'Sep 2024', btc: 252220, avgCost: 39266, totalCost: 9904 },
+  { date: 'Dec 2024', btc: 446400, avgCost: 62503, totalCost: 27900 },
+  { date: 'Mar 2025', btc: 506137, avgCost: 66357, totalCost: 33572 },
+  { date: 'Apr 2025', btc: 531644, avgCost: 67556, totalCost: 35922 },
+]
+
+// BTC price history (quarterly close) for unrealized P&L calc
+const BTC_PRICE_HISTORY: Record<string, number> = {
+  'Sep 2020': 10784, 'Dec 2020': 29001, 'Mar 2021': 58918, 'Jun 2021': 35040,
+  'Sep 2021': 43790, 'Dec 2021': 46306, 'Mar 2022': 45538, 'Jun 2022': 19785,
+  'Sep 2022': 19432, 'Dec 2022': 16548, 'Mar 2023': 28478, 'Jun 2023': 30468,
+  'Sep 2023': 27010, 'Dec 2023': 42265, 'Mar 2024': 71289, 'Jun 2024': 62678,
+  'Sep 2024': 63329, 'Dec 2024': 93429, 'Mar 2025': 82350, 'Apr 2025': 84000,
+}
+
+function StrategyFundamentalsSection({ data, symbol, companyName, logo, brandColor }: {
+  data: FundamentalsData; symbol: string; companyName: string; logo?: string; brandColor: string
+}) {
+  const [mobileTab, setMobileTab] = useState(0)
+
+  const quarters = useMemo(() => {
+    return [...data.quarters].sort((a, b) => a.date.localeCompare(b.date))
+  }, [data.quarters])
+
+  const mkData = useCallback((field: keyof QuarterData) =>
+    quarters.filter(q => q[field] != null).map(q => ({ quarter: formatQuarterLabel(q.date), value: q[field] as number })),
+    [quarters]
+  )
+
+  // BTC Holdings over time
+  const btcHoldingsData = useMemo(() =>
+    STRATEGY_BTC_HOLDINGS.map(d => ({ quarter: d.date, value: d.btc })),
+    []
+  )
+
+  // BTC Avg Cost Basis over time
+  const btcCostBasisData = useMemo(() =>
+    STRATEGY_BTC_HOLDINGS.map(d => ({ quarter: d.date, value: d.avgCost })),
+    []
+  )
+
+  // Total BTC Investment ($M)
+  const btcTotalCostData = useMemo(() =>
+    STRATEGY_BTC_HOLDINGS.map(d => ({ quarter: d.date, value: d.totalCost * 1e6 })),
+    []
+  )
+
+  // Unrealized P&L ($M)
+  const btcPnlData = useMemo(() =>
+    STRATEGY_BTC_HOLDINGS.map(d => {
+      const btcPrice = BTC_PRICE_HISTORY[d.date] || 0
+      const marketValue = d.btc * btcPrice
+      const costBasis = d.totalCost * 1e6
+      return { quarter: d.date, value: marketValue - costBasis }
+    }),
+    []
+  )
+
+  // Software Revenue (from quarterly data)
+  const revenueData = useMemo(() => mkData('revenue'), [mkData])
+
+  // Cash vs Debt (relevant for dividend coverage)
+  const debtCashData = useMemo(() =>
+    quarters.filter(q => q.totalDebt != null || q.cashAndEquivalents != null).map(q => ({
+      quarter: formatQuarterLabel(q.date), debt: q.totalDebt ?? 0, cash: q.cashAndEquivalents ?? 0,
+    })), [quarters])
+
+  // Assets vs Liabilities (shows BTC-driven asset growth)
+  const balanceSheetData = useMemo(() =>
+    quarters.filter(q => q.totalAssets != null || q.totalLiabilities != null).map(q => ({
+      quarter: formatQuarterLabel(q.date), assets: q.totalAssets ?? 0, liabilities: q.totalLiabilities ?? 0, equity: q.stockholdersEquity ?? 0,
+    })), [quarters])
+
+  const tabs = useMemo(() => {
+    const t: ChartTab[] = []
+
+    if (btcHoldingsData.length > 0)
+      t.push({
+        label: 'BTC Treasury Holdings', shortLabel: 'BTC Holdings', type: 'single',
+        config: {
+          title: 'BTC Treasury Holdings', symbol, companyName, logo, data: btcHoldingsData,
+          type: 'bar', brandColor: STRC_ORANGE,
+          valueFormatter: (v: number) => v >= 1000 ? `${(v / 1000).toFixed(0)}K` : `${v}`,
+          animationDelay: 0,
+        },
+      })
+
+    if (btcCostBasisData.length > 0)
+      t.push({
+        label: 'BTC Avg Cost Basis', shortLabel: 'Cost Basis', type: 'single',
+        config: {
+          title: 'BTC Average Cost Basis', symbol, companyName, logo, data: btcCostBasisData,
+          type: 'line', brandColor: STRC_ORANGE,
+          valueFormatter: (v: number) => `$${(v / 1000).toFixed(1)}K`,
+          animationDelay: 150,
+        },
+      })
+
+    if (btcPnlData.length > 0)
+      t.push({
+        label: 'Unrealized BTC P&L', shortLabel: 'BTC P&L', type: 'single',
+        config: {
+          title: 'Unrealized BTC P&L', symbol, companyName, logo, data: btcPnlData,
+          type: 'bar', brandColor: STRC_ORANGE,
+          animationDelay: 300,
+        },
+      })
+
+    if (btcTotalCostData.length > 0)
+      t.push({
+        label: 'Total BTC Investment', shortLabel: 'BTC Cost', type: 'single',
+        config: {
+          title: 'Total BTC Investment', symbol, companyName, logo, data: btcTotalCostData,
+          type: 'bar', brandColor: STRC_ORANGE,
+          animationDelay: 450,
+        },
+      })
+
+    if (revenueData.length > 0)
+      t.push({
+        label: 'Software Revenue', shortLabel: 'Revenue', type: 'single',
+        config: {
+          title: 'Software Revenue (Quarterly)', symbol, companyName, logo, data: revenueData,
+          brandColor: S.greenLight, animationDelay: 600,
+        },
+      })
+
+    if (debtCashData.length > 0)
+      t.push({
+        label: 'Debt vs Cash', shortLabel: 'Debt/Cash', type: 'multi',
+        multiConfig: {
+          title: 'Debt vs Cash', symbol, companyName, logo, data: debtCashData,
+          series: [
+            { key: 'debt', label: 'Total Debt', color: S.red },
+            { key: 'cash', label: 'Cash', color: S.accent },
+          ],
+          animationDelay: 750,
+        },
+      })
+
+    if (balanceSheetData.length > 0)
+      t.push({
+        label: 'Assets vs Liabilities', shortLabel: 'Balance Sheet', type: 'multi',
+        multiConfig: {
+          title: 'Assets vs Liabilities', symbol, companyName, logo, data: balanceSheetData,
+          series: [
+            { key: 'assets', label: 'Assets', color: '#3b82f6' },
+            { key: 'liabilities', label: 'Liabilities', color: S.red },
+            { key: 'equity', label: 'Equity', color: S.accent },
+          ],
+          animationDelay: 900,
+        },
+      })
+
+    return t
+  }, [btcHoldingsData, btcCostBasisData, btcPnlData, btcTotalCostData, revenueData, debtCashData, balanceSheetData, symbol, companyName, logo, brandColor])
+
+  if (tabs.length === 0) return null
+
+  const chartHeight = 350
+  const activeTab = tabs[mobileTab] || tabs[0]
+
+  // Latest BTC stats for summary cards
+  const latest = STRATEGY_BTC_HOLDINGS[STRATEGY_BTC_HOLDINGS.length - 1]
+  const latestBtcPrice = BTC_PRICE_HISTORY[latest.date] || 84000
+  const marketValue = latest.btc * latestBtcPrice
+  const unrealizedPnl = marketValue - latest.totalCost * 1e6
+  const pnlPercent = (unrealizedPnl / (latest.totalCost * 1e6)) * 100
+
+  const summaryStats = [
+    { label: 'Total BTC Held', value: latest.btc.toLocaleString(), highlight: true },
+    { label: 'Avg Cost / BTC', value: `$${latest.avgCost.toLocaleString()}` },
+    { label: 'Total Cost Basis', value: `$${(latest.totalCost / 1000).toFixed(1)}B` },
+    { label: 'Market Value', value: formatCompact(marketValue), highlight: true },
+    { label: 'Unrealized P&L', value: `${unrealizedPnl >= 0 ? '+' : ''}${formatCompact(unrealizedPnl)}`, positive: unrealizedPnl >= 0 },
+    { label: 'P&L %', value: `${pnlPercent >= 0 ? '+' : ''}${pnlPercent.toFixed(1)}%`, positive: pnlPercent >= 0 },
+    { label: 'Total Debt', value: '$8.2B' },
+    { label: 'BTC / Debt Coverage', value: `${(marketValue / 8.2e9).toFixed(1)}x`, highlight: true },
+  ]
+
+  return (
+    <div className="space-y-6">
+      <h2 className="text-xl font-bold flex items-center gap-2" style={{ color: S.text }}>
+        <span style={{ color: STRC_ORANGE }}>Strategy</span> Treasury & Fundamentals
+      </h2>
+
+      {/* BTC Treasury Summary Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {summaryStats.map((stat) => (
+          <div key={stat.label} className="rounded-xl p-4" style={{ backgroundColor: S.bg }}>
+            <div className="text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: S.textMuted }}>
+              {stat.label}
+            </div>
+            <div
+              className="text-lg font-bold"
+              style={{
+                color: 'positive' in stat
+                  ? (stat.positive ? S.accent : S.red)
+                  : stat.highlight ? STRC_ORANGE : S.text
+              }}
+            >
+              {stat.value}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* ─── Desktop: Grid layout ─── */}
+      <div className="hidden lg:block">
+        <div className="grid grid-cols-2 gap-6">
+          {tabs.map((t, i) =>
+            t.type === 'single' ? (
+              <ExpandableChart key={i} config={{ ...t.config!, animationDelay: i * 150 }} height={chartHeight} />
+            ) : (
+              <ExpandableMultiChart key={i} config={{ ...t.multiConfig!, animationDelay: i * 150 }} height={chartHeight} />
+            )
+          )}
+        </div>
+      </div>
+
+      {/* ─── Mobile: Single chart with tab bar ─── */}
+      <div className="lg:hidden">
+        <div
+          className="rounded-2xl overflow-hidden"
+          style={{ backgroundColor: S.bg, animation: 'fadeUp 0.4s ease-out both' }}
+        >
+          {activeTab.type === 'single' && activeTab.config ? (
+            <SpreadsChart config={activeTab.config} height={300} />
+          ) : activeTab.multiConfig ? (
+            <SpreadsMultiChartInner config={activeTab.multiConfig} height={300} />
+          ) : null}
+        </div>
+
+        <div className="mt-3 flex gap-1.5 overflow-x-auto scrollbar-hide pb-1 px-0.5">
+          {tabs.map((tab, i) => (
+            <button
+              key={i}
+              onClick={() => setMobileTab(i)}
+              className="px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all duration-200 shrink-0"
+              style={{
+                backgroundColor: mobileTab === i ? STRC_ORANGE : S.bg,
+                color: mobileTab === i ? '#fff' : S.textMuted,
+                boxShadow: mobileTab === i ? `0 2px 8px ${STRC_ORANGE}40` : 'none',
+              }}
+            >
+              {tab.shortLabel}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Standard Fundamentals Section ───
 
 // ─── Mobile Chart Tab Item ───
 interface ChartTab {
@@ -1547,14 +1821,24 @@ export default function StockDetailPage() {
 
         {/* ─── Fundamentals Charts ─── */}
         {fundamentals && (
-          <FundamentalsSection
-            data={fundamentals}
-            symbol={stock.symbol}
-            companyName={stock.name}
-            logo={logoUrl}
-            brandColor={brandColor}
-            currentPrice={stock.price}
-          />
+          stock.symbol === 'STRC' ? (
+            <StrategyFundamentalsSection
+              data={fundamentals}
+              symbol={stock.symbol}
+              companyName={stock.name}
+              logo={logoUrl}
+              brandColor={brandColor}
+            />
+          ) : (
+            <FundamentalsSection
+              data={fundamentals}
+              symbol={stock.symbol}
+              companyName={stock.name}
+              logo={logoUrl}
+              brandColor={brandColor}
+              currentPrice={stock.price}
+            />
+          )
         )}
 
         {/* ─── STRC Yield Section ─── */}
