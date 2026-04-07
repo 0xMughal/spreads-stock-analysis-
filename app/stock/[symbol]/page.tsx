@@ -770,6 +770,45 @@ function STRCYieldSection({ symbol, companyName, logo, currentPrice }: {
         {yieldChart(true)}
       </ChartModal>
 
+      {/* Tax Benefit Callout */}
+      <div className="rounded-2xl overflow-hidden mt-4 p-5" style={{ backgroundColor: S.bg, border: `1px solid ${STRC_ORANGE}30` }}>
+        <div className="flex items-start gap-3">
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5" style={{ backgroundColor: `${STRC_ORANGE}15` }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={STRC_ORANGE} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" /><path d="M12 16v-4M12 8h.01" />
+            </svg>
+          </div>
+          <div>
+            <h4 className="text-sm font-bold mb-1.5" style={{ color: S.text }}>
+              Tax Benefit — Return of Capital
+            </h4>
+            <p className="text-xs leading-relaxed mb-2" style={{ color: S.textMuted }}>
+              STRC dividends are currently classified as <span className="font-semibold" style={{ color: STRC_ORANGE }}>non-taxable return of capital</span> for
+              U.S. federal income tax purposes. Instead of being taxed as income, dividends reduce your cost basis.
+              Tax is deferred until you sell — and at long-term capital gains rates if held 1yr+.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-3">
+              <div className="rounded-lg px-3 py-2" style={{ backgroundColor: `${S.green}08` }}>
+                <div className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: S.textDim }}>Year 1 Basis</div>
+                <div className="text-sm font-bold" style={{ color: S.text }}>$100 → $88.50</div>
+              </div>
+              <div className="rounded-lg px-3 py-2" style={{ backgroundColor: `${S.green}08` }}>
+                <div className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: S.textDim }}>Year 5 Basis</div>
+                <div className="text-sm font-bold" style={{ color: S.text }}>$100 → ~$42.50</div>
+              </div>
+              <div className="rounded-lg px-3 py-2" style={{ backgroundColor: `${S.green}08` }}>
+                <div className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: S.textDim }}>~Year 9</div>
+                <div className="text-sm font-bold" style={{ color: S.red }}>Basis depleted → $0</div>
+              </div>
+            </div>
+            <p className="text-[10px] mt-2.5 leading-relaxed" style={{ color: S.textDim }}>
+              Strategy expects ROC treatment to continue for 10+ years. Once basis reaches $0, all subsequent dividends
+              become taxable as capital gains. Not tax advice — consult a tax professional.
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Link to Strategy.com */}
       <div className="mt-3 flex justify-end">
         <a
